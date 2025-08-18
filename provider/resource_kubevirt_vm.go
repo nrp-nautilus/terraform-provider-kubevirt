@@ -12,11 +12,10 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-log/tflog"
-	k8sv1 "k8s.io/api/core/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
-	"k8s.io/apimachinery/pkg/runtime/schema"
+	k8sschema "k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
@@ -391,7 +390,7 @@ func (r *KubeVirtVMResource) Create(ctx context.Context, req resource.CreateRequ
 	}
 
 	// Create the VM using dynamic client
-	gvr := schema.GroupVersionResource{
+	gvr := k8sschema.GroupVersionResource{
 		Group:    "kubevirt.io",
 		Version:  "v1",
 		Resource: "virtualmachines",
@@ -431,7 +430,7 @@ func (r *KubeVirtVMResource) Read(ctx context.Context, req resource.ReadRequest,
 	}
 
 	// Get the VM from Kubernetes
-	gvr := schema.GroupVersionResource{
+	gvr := k8sschema.GroupVersionResource{
 		Group:    "kubevirt.io",
 		Version:  "v1",
 		Resource: "virtualmachines",
@@ -492,7 +491,7 @@ func (r *KubeVirtVMResource) Delete(ctx context.Context, req resource.DeleteRequ
 	}
 
 	// Delete the VM from Kubernetes
-	gvr := schema.GroupVersionResource{
+	gvr := k8sschema.GroupVersionResource{
 		Group:    "kubevirt.io",
 		Version:  "v1",
 		Resource: "virtualmachines",
