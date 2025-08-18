@@ -9,6 +9,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/provider"
 	"github.com/hashicorp/terraform-plugin-framework/provider/schema"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringdefault"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 )
 
@@ -25,7 +26,8 @@ type KubeVirtProvider struct {
 
 // KubeVirtProviderModel describes the provider data model.
 type KubeVirtProviderModel struct {
-	Endpoint types.String `tfsdk:"endpoint"`
+	Endpoint  types.String `tfsdk:"endpoint"`
+	Namespace types.String `tfsdk:"namespace"`
 }
 
 func (p *KubeVirtProvider) Metadata(ctx context.Context, req provider.MetadataRequest, resp *provider.MetadataResponse) {
@@ -39,6 +41,11 @@ func (p *KubeVirtProvider) Schema(ctx context.Context, req provider.SchemaReques
 			"endpoint": schema.StringAttribute{
 				MarkdownDescription: "Example provider attribute",
 				Optional:            true,
+			},
+			"namespace": schema.StringAttribute{
+				MarkdownDescription: "Kubernetes namespace to operate in",
+				Optional:            true,
+				Default:             stringdefault.StaticString("terraform-dev"),
 			},
 		},
 	}

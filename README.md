@@ -63,7 +63,7 @@ terraform {
 }
 
 provider "kubevirt" {
-  # Provider configuration
+  namespace = "terraform-dev"
 }
 
 resource "kubevirt_hello_world" "example" {

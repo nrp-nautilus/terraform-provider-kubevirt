@@ -8,7 +8,7 @@ terraform {
 }
 
 provider "kubevirt" {
-  # Optional: Add any provider configuration here
+  namespace = "terraform-dev"
 }
 
 # Example resource
