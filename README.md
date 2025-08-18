@@ -1,93 +1,146 @@
-# Kubevirt Terraform Provider
+# KubeVirt Terraform Provider
 
+A minimal Terraform provider example that demonstrates how to create custom providers for use with Coder.
 
+## Features
 
-## Getting started
+- **Hello World Resource**: A simple resource that stores a configurable message
+- **Hello World Data Source**: A data source that returns example data
+- **GitLab CI/CD**: Automated build and release pipeline
 
-To make it easy for you to get started with GitLab, here's a list of recommended next steps.
+## Quick Start
 
-Already a pro? Just edit this README.md and make it your own. Want to make it easy? [Use the template at the bottom](#editing-this-readme)!
+### 1. Build the Provider
 
-## Add your files
-
-- [ ] [Create](https://docs.gitlab.com/ee/user/project/repository/web_editor.html#create-a-file) or [upload](https://docs.gitlab.com/ee/user/project/repository/web_editor.html#upload-a-file) files
-- [ ] [Add files using the command line](https://docs.gitlab.com/topics/git/add_files/#add-files-to-a-git-repository) or push an existing Git repository with the following command:
-
-```
-cd existing_repo
-git remote add origin https://gitlab.nrp-nautilus.io/nrp/kubevirt-terraform-provider.git
-git branch -M main
-git push -uf origin main
+```bash
+# Install Go 1.21+
+go mod download
+go build -o terraform-provider-kubevirt .
 ```
 
-## Integrate with your tools
+### 2. Test Locally
 
-- [ ] [Set up project integrations](https://gitlab.nrp-nautilus.io/nrp/kubevirt-terraform-provider/-/settings/integrations)
+```bash
+# Create a test directory
+mkdir test-provider && cd test-provider
 
-## Collaborate with your team
+# Copy the provider binary
+cp ../terraform-provider-kubevirt .
 
-- [ ] [Invite team members and collaborators](https://docs.gitlab.com/ee/user/project/members/)
-- [ ] [Create a new merge request](https://docs.gitlab.com/ee/user/project/merge_requests/creating_merge_requests.html)
-- [ ] [Automatically close issues from merge requests](https://docs.gitlab.com/ee/user/project/issues/managing_issues.html#closing-issues-automatically)
-- [ ] [Enable merge request approvals](https://docs.gitlab.com/ee/user/project/merge_requests/approvals/)
-- [ ] [Set auto-merge](https://docs.gitlab.com/user/project/merge_requests/auto_merge/)
+# Create a simple test configuration
+cat > main.tf <<EOF
+terraform {
+  required_providers {
+    kubevirt = {
+      source = "./terraform-provider-kubevirt"
+    }
+  }
+}
 
-## Test and Deploy
+resource "kubevirt_hello_world" "test" {
+  configurable_attribute = "Hello World!"
+}
+EOF
 
-Use the built-in continuous integration in GitLab.
+# Initialize and apply
+terraform init
+terraform plan
+terraform apply
+```
 
-- [ ] [Get started with GitLab CI/CD](https://docs.gitlab.com/ee/ci/quick_start/)
-- [ ] [Analyze your code for known vulnerabilities with Static Application Security Testing (SAST)](https://docs.gitlab.com/ee/user/application_security/sast/)
-- [ ] [Deploy to Kubernetes, Amazon EC2, or Amazon ECS using Auto Deploy](https://docs.gitlab.com/ee/topics/autodevops/requirements.html)
-- [ ] [Use pull-based deployments for improved Kubernetes management](https://docs.gitlab.com/ee/user/clusters/agent/)
-- [ ] [Set up protected environments](https://docs.gitlab.com/ee/ci/environments/protected_environments.html)
+### 3. Use in Coder
 
-***
+To use this provider in your Coder templates:
 
-# Editing this README
+```hcl
+terraform {
+  required_providers {
+    kubevirt = {
+      source  = "gitlab.nrp-nautilus.io/terraform-dev/kubevirt-terraform-provider/kubevirt"
+      version = "0.1.0"
+    }
+  }
+}
 
-When you're ready to make this README your own, just edit this file and use the handy template below (or feel free to structure it however you want - this is just a starting point!). Thanks to [makeareadme.com](https://www.makeareadme.com/) for this template.
+provider "kubevirt" {
+  # Provider configuration
+}
 
-## Suggestions for a good README
+resource "kubevirt_hello_world" "example" {
+  configurable_attribute = "Hello from Coder!"
+}
+```
 
-Every project is different, so consider which of these sections apply to yours. The sections used in the template are suggestions for most open source projects. Also keep in mind that while a README can be too long and detailed, too long is better than too short. If you think your README is too long, consider utilizing another form of documentation rather than cutting out information.
+## GitLab CI/CD Pipeline
 
-## Name
-Choose a self-explaining name for your project.
+The pipeline automatically:
 
-## Description
-Let people know what your project can do specifically. Provide context and add a link to any reference visitors might be unfamiliar with. A list of Features or a Background subsection can also be added here. If there are alternatives to your project, this is a good place to list differentiating factors.
+1. **Tests**: Runs `go test`, `go vet`, and `go fmt`
+2. **Builds**: Creates binaries for Linux and macOS
+3. **Releases**: Creates GitLab releases when you tag commits
 
-## Badges
-On some READMEs, you may see small images that convey metadata, such as whether or not all the tests are passing for the project. You can use Shields to add some to your README. Many services also have instructions for adding a badge.
+### To Release a New Version
 
-## Visuals
-Depending on what you are making, it can be a good idea to include screenshots or even a video (you'll frequently see GIFs rather than actual videos). Tools like ttygif can help, but check out Asciinema for a more sophisticated method.
+```bash
+git tag v0.1.0
+git push origin v0.1.0
+```
 
-## Installation
-Within a particular ecosystem, there may be a common way of installing things, such as using Yarn, NuGet, or Homebrew. However, consider the possibility that whoever is reading your README is a novice and would like more guidance. Listing specific steps helps remove ambiguity and gets people to using your project as quickly as possible. If it only runs in a specific context like a particular programming language version or operating system or has dependencies that have to be installed manually, also add a Requirements subsection.
+The pipeline will automatically build and create a release with the provider binaries.
 
-## Usage
-Use examples liberally, and show the expected output if you can. It's helpful to have inline the smallest example of usage that you can demonstrate, while providing links to more sophisticated examples if they are too long to reasonably include in the README.
+## Provider Structure
 
-## Support
-Tell people where they can go to for help. It can be any combination of an issue tracker, a chat room, an email address, etc.
+```
+.
+├── main.go                    # Provider entry point
+├── provider/
+│   ├── provider.go           # Main provider implementation
+│   ├── resource_hello_world.go # Hello World resource
+│   └── data_source_hello_world.go # Hello World data source
+├── examples/
+│   └── main.tf              # Example usage
+├── go.mod                    # Go dependencies
+├── .gitlab-ci.yml           # CI/CD pipeline
+└── README.md                # This file
+```
 
-## Roadmap
-If you have ideas for releases in the future, it is a good idea to list them in the README.
+## Customization
 
-## Contributing
-State if you are open to contributions and what your requirements are for accepting them.
+To add your own resources:
 
-For people who want to make changes to your project, it's helpful to have some documentation on how to get started. Perhaps there is a script that they should run or some environment variables that they need to set. Make these steps explicit. These instructions could also be useful to your future self.
+1. Create a new file in the `provider/` directory (e.g., `resource_virtualmachine.go`)
+2. Implement the resource interface
+3. Add it to the provider's `Resources()` method
+4. Update the provider schema if needed
 
-You can also document commands to lint the code or run tests. These steps help to ensure high code quality and reduce the likelihood that the changes inadvertently break something. Having instructions for running tests is especially helpful if it requires external setup, such as starting a Selenium server for testing in a browser.
+## Next Steps
 
-## Authors and acknowledgment
-Show your appreciation to those who have contributed to the project.
+This is a minimal example. To create a full KubeVirt provider:
 
-## License
-For open source projects, say how it is licensed.
+1. Add Kubernetes client configuration
+2. Implement VirtualMachine resource with proper CRUD operations
+3. Add support for sidecar hooks and PCI device passthrough
+4. Implement proper error handling and validation
+5. Add comprehensive testing
 
-## Project status
-If you have run out of energy or time for your project, put a note at the top of the README saying that development has slowed down or stopped completely. Someone may choose to fork your project or volunteer to step in as a maintainer or owner, allowing your project to keep going. You can also make an explicit request for maintainers.
+## Troubleshooting
+
+### Provider Not Found
+
+Make sure the provider binary is in the correct location and has the right name format:
+`terraform-provider-{name}_{version}`
+
+### Build Errors
+
+Ensure you have Go 1.21+ installed and all dependencies are downloaded:
+```bash
+go mod download
+go mod verify
+```
+
+### CI/CD Pipeline Issues
+
+Check that:
+- Your GitLab project has the necessary permissions
+- The `CI_JOB_TOKEN` has access to create releases
+- The Go version in the pipeline matches your local version
