@@ -1,0 +1,17 @@
+# Build artifacts
+terraform-provider-*
+bin/
+dist/
+build/
+
+# Terraform local state and cache
+**/.terraform/
+**/*.tfstate
+**/*.tfstate.*
+**/.terraform.lock.hcl
+
+# Archives
+*.zip
+
+# macOS
+.DS_Store
