@@ -1,8 +1,7 @@
 terraform {
   required_providers {
     kubevirt = {
-      source  = "gitlab.nrp-nautilus.io/nrp/kubevirt-terraform-provider/kubevirt"
-      version = "0.1.0"
+      source  = "gitlab.nrp-nautilus.io/nrp/kubevirt"
     }
   }
 }

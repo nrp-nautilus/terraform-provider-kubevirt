@@ -29,7 +29,7 @@ var (
 
 func main() {
 	opts := providerserver.ServeOpts{
-		Address: "registry.terraform.io/your-namespace/kubevirt",
+		Address: "gitlab.nrp-nautilus.io/nrp/kubevirt",
 	}
 
 	err := providerserver.Serve(context.Background(), provider.New(version), opts)

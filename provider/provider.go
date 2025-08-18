@@ -60,8 +60,8 @@ func (p *KubeVirtProvider) Configure(ctx context.Context, req provider.Configure
 	// data.Endpoint.ValueString()
 
 	// Example client configuration for data sources and resources
-	resp.DataSourceData = data
-	resp.ResourceData = data
+	resp.DataSourceData = p
+	resp.ResourceData = p
 }
 
 func (p *KubeVirtProvider) Resources(ctx context.Context) []func() resource.Resource {
