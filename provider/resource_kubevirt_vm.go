@@ -260,9 +260,7 @@ func (r *KubeVirtVMResource) Create(ctx context.Context, req resource.CreateRequ
 								"interfaces": []map[string]interface{}{
 									{
 										"name": "default",
-										"bridge": map[string]interface{}{
-											"{}": "",
-										},
+										"bridge": map[string]interface{}{},
 									},
 								},
 							},
@@ -279,6 +277,12 @@ func (r *KubeVirtVMResource) Create(ctx context.Context, req resource.CreateRequ
 								"containerDisk": map[string]interface{}{
 									"image": data.Image.ValueString(),
 								},
+							},
+						},
+						"networks": []map[string]interface{}{
+							{
+								"name": "default",
+								"pod":  map[string]interface{}{},
 							},
 						},
 					},
@@ -305,6 +309,11 @@ func (r *KubeVirtVMResource) Create(ctx context.Context, req resource.CreateRequ
 			"hugepages": map[string]interface{}{
 				"pageSize": data.Hugepages.ValueString(),
 			},
+		}
+	} else {
+		// Set default memory configuration
+		vm.Object["spec"].(map[string]interface{})["template"].(map[string]interface{})["spec"].(map[string]interface{})["domain"].(map[string]interface{})["memory"] = map[string]interface{}{
+			"guest": data.Memory.ValueString(),
 		}
 	}
 
@@ -364,7 +373,7 @@ func (r *KubeVirtVMResource) Create(ctx context.Context, req resource.CreateRequ
 				"deviceName": device,
 			}
 		}
-		vm.Object["spec"].(map[string]interface{})["template"].(map[string]interface{})["spec"].(map[string]interface{})["domain"].(map[string]interface{})["devices"].(map[string]interface{})["inputs"] = usbObjects
+		vm.Object["spec"].(map[string]interface{})["template"].(map[string]interface{})["spec"].(map[string]interface{})["domain"].(map[string]interface{})["devices"].(map[string]interface{})["usb"] = usbObjects
 	}
 
 	// Add cloud-init if specified
