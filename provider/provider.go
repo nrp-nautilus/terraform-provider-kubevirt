@@ -56,9 +56,6 @@ func (p *KubeVirtProvider) Configure(ctx context.Context, req provider.Configure
 		return
 	}
 
-	// Configuration values are now available.
-	// data.Endpoint.ValueString()
-
 	// Example client configuration for data sources and resources
 	resp.DataSourceData = p
 	resp.ResourceData = p
@@ -67,7 +64,7 @@ func (p *KubeVirtProvider) Configure(ctx context.Context, req provider.Configure
 func (p *KubeVirtProvider) Resources(ctx context.Context) []func() resource.Resource {
 	return []func() resource.Resource{
 		NewHelloWorldResource,
-		NewKubernetesPodResource,
+		NewKubeVirtVMResource,
 	}
 }
 
