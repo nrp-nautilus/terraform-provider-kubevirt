@@ -2,8 +2,8 @@
 # Manual edits may be lost in future updates.
 
 provider "gitlab.nrp-nautilus.io/nrp/kubevirt" {
-  version = "0.1.2"
+  version = "0.1.3"
   hashes = [
-    "h1:F0NY1+F+oTjyXEwYxOhz/GR58fVBfMGDdyartJ1+uas=",
+    "h1:AxGQDUPEWQ7cZbadre+MO8yr9inl8tQw4rfYS5rVJCw=",
   ]
 }

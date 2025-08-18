@@ -67,6 +67,7 @@ func (p *KubeVirtProvider) Configure(ctx context.Context, req provider.Configure
 func (p *KubeVirtProvider) Resources(ctx context.Context) []func() resource.Resource {
 	return []func() resource.Resource{
 		NewHelloWorldResource,
+		NewKubernetesPodResource,
 	}
 }
 
