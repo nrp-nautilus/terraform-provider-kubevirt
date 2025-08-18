@@ -6,7 +6,7 @@ stages:
 variables:
   GO_VERSION: "1.21"
   PROVIDER_NAME: "kubevirt"
-  PROVIDER_NAMESPACE: "terraform-dev"
+  PROVIDER_NAMESPACE: "nrp"
 
 # Test stage
 test:
