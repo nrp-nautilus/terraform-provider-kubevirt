@@ -2,10 +2,10 @@ package main
 
 import (
 	"context"
-	"fmt"
 	"log"
 
 	"github.com/hashicorp/terraform-plugin-framework/providerserver"
+	"gitlab.nrp-nautilus.io/nrp/kubevirt-terraform-provider/provider"
 )
 
 // Run "go generate" to format example terraform files and generate the docs for the registry/website
@@ -32,7 +32,7 @@ func main() {
 		Address: "registry.terraform.io/your-namespace/kubevirt",
 	}
 
-	err := providerserver.Serve(context.Background(), New(version), opts)
+	err := providerserver.Serve(context.Background(), provider.New(version), opts)
 	if err != nil {
 		log.Fatal(err.Error())
 	}

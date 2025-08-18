@@ -2,14 +2,11 @@ package provider
 
 import (
 	"context"
-	"fmt"
 
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
-	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/provider"
 	"github.com/hashicorp/terraform-plugin-framework/provider/schema"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
-	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringdefault"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 )
 
@@ -45,7 +42,6 @@ func (p *KubeVirtProvider) Schema(ctx context.Context, req provider.SchemaReques
 			"namespace": schema.StringAttribute{
 				MarkdownDescription: "Kubernetes namespace to operate in",
 				Optional:            true,
-				Default:             stringdefault.StaticString("terraform-dev"),
 			},
 		},
 	}
