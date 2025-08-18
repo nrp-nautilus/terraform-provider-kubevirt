@@ -1,0 +1,516 @@
+package provider
+
+import (
+	"context"
+	"fmt"
+	"time"
+
+	"github.com/hashicorp/terraform-plugin-framework/path"
+	"github.com/hashicorp/terraform-plugin-framework/resource"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
+	"github.com/hashicorp/terraform-plugin-framework/types"
+	"github.com/hashicorp/terraform-plugin-log/tflog"
+	k8sv1 "k8s.io/api/core/v1"
+	k8serrors "k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/client-go/dynamic"
+	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/rest"
+)
+
+// Ensure the implementation satisfies the expected interfaces
+var (
+	_ resource.Resource                = &KubeVirtVMResource{}
+	_ resource.ResourceWithConfigure   = &KubeVirtVMResource{}
+	_ resource.ResourceWithImportState = &KubeVirtVMResource{}
+)
+
+// KubeVirtVMResource is the resource implementation.
+type KubeVirtVMResource struct {
+	client        *kubernetes.Clientset
+	dynamicClient dynamic.Interface
+	namespace     string
+}
+
+// KubeVirtVMResourceModel describes the resource data model.
+type KubeVirtVMResourceModel struct {
+	ID                types.String `tfsdk:"id"`
+	Name              types.String `tfsdk:"name"`
+	Namespace         types.String `tfsdk:"namespace"`
+	Image             types.String `tfsdk:"image"`
+	Memory            types.String `tfsdk:"memory"`
+	CPU               types.Int64  `tfsdk:"cpu"`
+	MachineType       types.String `tfsdk:"machine_type"`
+	Architecture      types.String `tfsdk:"architecture"`
+	Hugepages         types.String `tfsdk:"hugepages"`
+	SidecarHook       types.String `tfsdk:"sidecar_hook"`
+	NodeSelector      types.Map    `tfsdk:"node_selector"`
+	Tolerations       types.List   `tfsdk:"tolerations"`
+	HostDevices       types.List   `tfsdk:"host_devices"`
+	USBDevices        types.List   `tfsdk:"usb_devices"`
+	NetworkInterfaces types.List   `tfsdk:"network_interfaces"`
+	CloudInit         types.String `tfsdk:"cloud_init"`
+	VMStatus          types.String `tfsdk:"vm_status"`
+	CreationTimestamp types.String `tfsdk:"creation_timestamp"`
+}
+
+func NewKubeVirtVMResource() resource.Resource {
+	return &KubeVirtVMResource{}
+}
+
+// Metadata returns the resource type name.
+func (r *KubeVirtVMResource) Metadata(_ context.Context, req resource.MetadataRequest, resp *resource.MetadataResponse) {
+	resp.TypeName = req.ProviderTypeName + "_kubevirt_vm"
+}
+
+// Schema defines the schema for the resource.
+func (r *KubeVirtVMResource) Schema(ctx context.Context, req resource.SchemaRequest, resp *resource.SchemaResponse) {
+	resp.Schema = schema.Schema{
+		Description: "Manages a KubeVirt VirtualMachine",
+		Attributes: map[string]schema.Attribute{
+			"id": schema.StringAttribute{
+				Description: "Unique identifier for the VM",
+				Computed:    true,
+			},
+			"name": schema.StringAttribute{
+				Description: "Name of the VirtualMachine",
+				Required:    true,
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.RequiresReplace(),
+				},
+			},
+			"namespace": schema.StringAttribute{
+				Description: "Kubernetes namespace for the VM",
+				Required:    true,
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.RequiresReplace(),
+				},
+			},
+			"image": schema.StringAttribute{
+				Description: "Container image for the VM",
+				Required:    true,
+			},
+			"memory": schema.StringAttribute{
+				Description: "Memory allocation (e.g., '2Gi')",
+				Required:    true,
+			},
+			"cpu": schema.Int64Attribute{
+				Description: "Number of CPU cores",
+				Required:    true,
+			},
+			"machine_type": schema.StringAttribute{
+				Description: "QEMU machine type (e.g., 'q35')",
+				Optional:    true,
+			},
+			"architecture": schema.StringAttribute{
+				Description: "CPU architecture (e.g., 'x86_64')",
+				Optional:    true,
+			},
+			"hugepages": schema.StringAttribute{
+				Description: "Hugepages configuration (e.g., '1Gi')",
+				Optional:    true,
+			},
+			"sidecar_hook": schema.StringAttribute{
+				Description: "Sidecar hook script name (ConfigMap)",
+				Optional:    true,
+			},
+			"node_selector": schema.MapAttribute{
+				Description: "Node selector labels",
+				ElementType: types.StringType,
+				Optional:    true,
+			},
+			"tolerations": schema.ListAttribute{
+				Description: "Tolerations for node scheduling",
+				ElementType: types.StringType,
+				Optional:    true,
+			},
+			"host_devices": schema.ListAttribute{
+				Description: "PCI host devices to attach",
+				ElementType: types.StringType,
+				Optional:    true,
+			},
+			"usb_devices": schema.ListAttribute{
+				Description: "USB devices to attach",
+				ElementType: types.StringType,
+				Optional:    true,
+			},
+			"network_interfaces": schema.ListAttribute{
+				Description: "Network interface configurations",
+				ElementType: types.StringType,
+				Optional:    true,
+			},
+			"cloud_init": schema.StringAttribute{
+				Description: "Cloud-init user data",
+				Optional:    true,
+			},
+			"vm_status": schema.StringAttribute{
+				Description: "Current status of the VM",
+				Computed:    true,
+			},
+			"creation_timestamp": schema.StringAttribute{
+				Description: "Timestamp when the VM was created",
+				Computed:    true,
+			},
+		},
+	}
+}
+
+// Configure adds the provider configured client to the resource.
+func (r *KubeVirtVMResource) Configure(ctx context.Context, req resource.ConfigureRequest, resp *resource.ConfigureResponse) {
+	// Prevent panic if the provider has not been configured.
+	if req.ProviderData == nil {
+		return
+	}
+
+	provider, ok := req.ProviderData.(*KubeVirtProvider)
+	if !ok {
+		resp.Diagnostics.AddError(
+			"Unexpected Resource Configure Type",
+			fmt.Sprintf("Expected *KubeVirtProvider, got: %T. Please report this issue to the provider developers.", req.ProviderData),
+		)
+		return
+	}
+
+	// Get the namespace from provider config
+	namespace := "default"
+	if !provider.Namespace.IsNull() && !provider.Namespace.IsUnknown() {
+		namespace = provider.Namespace.ValueString()
+	}
+
+	// Create Kubernetes client
+	config, err := rest.InClusterConfig()
+	if err != nil {
+		resp.Diagnostics.AddError(
+			"Failed to get cluster config",
+			fmt.Sprintf("Error: %v", err),
+		)
+		return
+	}
+
+	clientset, err := kubernetes.NewForConfig(config)
+	if err != nil {
+		resp.Diagnostics.AddError(
+			"Failed to create Kubernetes client",
+			fmt.Sprintf("Error: %v", err),
+		)
+		return
+	}
+
+	dynamicClient, err := dynamic.NewForConfig(config)
+	if err != nil {
+		resp.Diagnostics.AddError(
+			"Failed to create dynamic client",
+			fmt.Sprintf("Error: %v", err),
+		)
+		return
+	}
+
+	r.client = clientset
+	r.dynamicClient = dynamicClient
+	r.namespace = namespace
+}
+
+// Create creates the resource and sets the initial Terraform state.
+func (r *KubeVirtVMResource) Create(ctx context.Context, req resource.CreateRequest, resp *resource.CreateResponse) {
+	var data KubeVirtVMResourceModel
+
+	// Read Terraform plan data into the model
+	resp.Diagnostics.Append(req.Plan.Get(ctx, &data)...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+
+	// Use namespace from resource if specified, otherwise use provider default
+	namespace := data.Namespace.ValueString()
+	if namespace == "" {
+		namespace = r.namespace
+	}
+
+	// Create the VirtualMachine manifest
+	vm := &unstructured.Unstructured{
+		Object: map[string]interface{}{
+			"apiVersion": "kubevirt.io/v1",
+			"kind":       "VirtualMachine",
+			"metadata": map[string]interface{}{
+				"name":      data.Name.ValueString(),
+				"namespace": namespace,
+			},
+			"spec": map[string]interface{}{
+				"running": true,
+				"template": map[string]interface{}{
+					"metadata": map[string]interface{}{
+						"labels": map[string]interface{}{
+							"kubevirt.io/vm": data.Name.ValueString(),
+						},
+					},
+					"spec": map[string]interface{}{
+						"domain": map[string]interface{}{
+							"devices": map[string]interface{}{
+								"disks": []map[string]interface{}{
+									{
+										"name": "containerdisk",
+										"disk": map[string]interface{}{
+											"bus": "virtio",
+										},
+									},
+								},
+								"interfaces": []map[string]interface{}{
+									{
+										"name": "default",
+										"bridge": map[string]interface{}{
+											"{}": "",
+										},
+									},
+								},
+							},
+							"resources": map[string]interface{}{
+								"requests": map[string]interface{}{
+									"memory": data.Memory.ValueString(),
+									"cpu":    data.CPU.ValueInt64(),
+								},
+							},
+						},
+						"volumes": []map[string]interface{}{
+							{
+								"name": "containerdisk",
+								"containerDisk": map[string]interface{}{
+									"image": data.Image.ValueString(),
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+
+	// Add optional fields if specified
+	if !data.MachineType.IsNull() && !data.MachineType.IsUnknown() {
+		vm.Object["spec"].(map[string]interface{})["template"].(map[string]interface{})["spec"].(map[string]interface{})["domain"].(map[string]interface{})["machine"] = map[string]interface{}{
+			"type": data.MachineType.ValueString(),
+		}
+	}
+
+	if !data.Architecture.IsNull() && !data.Architecture.IsUnknown() {
+		vm.Object["spec"].(map[string]interface{})["template"].(map[string]interface{})["spec"].(map[string]interface{})["domain"].(map[string]interface{})["cpu"] = map[string]interface{}{
+			"architecture": data.Architecture.ValueString(),
+		}
+	}
+
+	if !data.Hugepages.IsNull() && !data.Hugepages.IsUnknown() {
+		vm.Object["spec"].(map[string]interface{})["template"].(map[string]interface{})["spec"].(map[string]interface{})["domain"].(map[string]interface{})["memory"] = map[string]interface{}{
+			"hugepages": map[string]interface{}{
+				"pageSize": data.Hugepages.ValueString(),
+			},
+		}
+	}
+
+	// Add sidecar hook if specified
+	if !data.SidecarHook.IsNull() && !data.SidecarHook.IsUnknown() {
+		vm.Object["spec"].(map[string]interface{})["template"].(map[string]interface{})["metadata"].(map[string]interface{})["annotations"] = map[string]interface{}{
+			"hooks.kubevirt.io/hookSidecars": fmt.Sprintf("[{\"name\": \"%s\"}]", data.SidecarHook.ValueString()),
+		}
+	}
+
+	// Add node selector if specified
+	if !data.NodeSelector.IsNull() && !data.NodeSelector.IsUnknown() {
+		nodeSelector := make(map[string]string)
+		data.NodeSelector.ElementsAs(ctx, &nodeSelector, false)
+		vm.Object["spec"].(map[string]interface{})["template"].(map[string]interface{})["spec"].(map[string]interface{})["nodeSelector"] = nodeSelector
+	}
+
+	// Add tolerations if specified
+	if !data.Tolerations.IsNull() && !data.Tolerations.IsUnknown() {
+		var tolerations []string
+		data.Tolerations.ElementsAs(ctx, &tolerations, false)
+		// Convert string tolerations to proper toleration objects
+		tolObjects := make([]map[string]interface{}, len(tolerations))
+		for i, tol := range tolerations {
+			tolObjects[i] = map[string]interface{}{
+				"key":    tol,
+				"effect": "NoSchedule",
+			}
+		}
+		vm.Object["spec"].(map[string]interface{})["template"].(map[string]interface{})["spec"].(map[string]interface{})["tolerations"] = tolObjects
+	}
+
+	// Add host devices if specified
+	if !data.HostDevices.IsNull() && !data.HostDevices.IsUnknown() {
+		var devices []string
+		data.HostDevices.ElementsAs(ctx, &devices, false)
+		hostDevices := make([]map[string]interface{}, len(devices))
+		for i, device := range devices {
+			hostDevices[i] = map[string]interface{}{
+				"name":       fmt.Sprintf("hostdevice-%d", i),
+				"deviceName": device,
+			}
+		}
+		vm.Object["spec"].(map[string]interface{})["template"].(map[string]interface{})["spec"].(map[string]interface{})["domain"].(map[string]interface{})["devices"].(map[string]interface{})["hostDevices"] = hostDevices
+	}
+
+	// Add USB devices if specified
+	if !data.USBDevices.IsNull() && !data.USBDevices.IsUnknown() {
+		var usbDevices []string
+		data.USBDevices.ElementsAs(ctx, &usbDevices, false)
+		usbObjects := make([]map[string]interface{}, len(usbDevices))
+		for i, device := range usbDevices {
+			usbObjects[i] = map[string]interface{}{
+				"name":       fmt.Sprintf("usb-%d", i),
+				"vendor":     "0x1234", // Default vendor ID
+				"product":    "0x5678", // Default product ID
+				"deviceName": device,
+			}
+		}
+		vm.Object["spec"].(map[string]interface{})["template"].(map[string]interface{})["spec"].(map[string]interface{})["domain"].(map[string]interface{})["devices"].(map[string]interface{})["inputs"] = usbObjects
+	}
+
+	// Add cloud-init if specified
+	if !data.CloudInit.IsNull() && !data.CloudInit.IsUnknown() {
+		vm.Object["spec"].(map[string]interface{})["template"].(map[string]interface{})["spec"].(map[string]interface{})["volumes"] = append(
+			vm.Object["spec"].(map[string]interface{})["template"].(map[string]interface{})["spec"].(map[string]interface{})["volumes"].([]map[string]interface{}),
+			map[string]interface{}{
+				"name": "cloudinitdisk",
+				"cloudInitNoCloud": map[string]interface{}{
+					"userData": data.CloudInit.ValueString(),
+				},
+			},
+		)
+		vm.Object["spec"].(map[string]interface{})["template"].(map[string]interface{})["spec"].(map[string]interface{})["domain"].(map[string]interface{})["devices"].(map[string]interface{})["disks"] = append(
+			vm.Object["spec"].(map[string]interface{})["template"].(map[string]interface{})["spec"].(map[string]interface{})["domain"].(map[string]interface{})["devices"].(map[string]interface{})["disks"].([]map[string]interface{}),
+			map[string]interface{}{
+				"name": "cloudinitdisk",
+				"disk": map[string]interface{}{
+					"bus": "virtio",
+				},
+			},
+		)
+	}
+
+	// Create the VM using dynamic client
+	gvr := schema.GroupVersionResource{
+		Group:    "kubevirt.io",
+		Version:  "v1",
+		Resource: "virtualmachines",
+	}
+
+	createdVM, err := r.dynamicClient.Resource(gvr).Namespace(namespace).Create(ctx, vm, metav1.CreateOptions{})
+	if err != nil {
+		resp.Diagnostics.AddError(
+			"Failed to create VirtualMachine",
+			fmt.Sprintf("Error: %v", err),
+		)
+		return
+	}
+
+	// Set computed fields
+	data.ID = types.StringValue(string(createdVM.GetUID()))
+	data.VMStatus = types.StringValue("Created")
+	data.CreationTimestamp = types.StringValue(createdVM.GetCreationTimestamp().Format(time.RFC3339))
+
+	// Save data into Terraform state
+	resp.Diagnostics.Append(resp.State.Set(ctx, data)...)
+}
+
+// Read refreshes the Terraform state with the latest data.
+func (r *KubeVirtVMResource) Read(ctx context.Context, req resource.ReadRequest, resp *resource.ReadResponse) {
+	var data KubeVirtVMResourceModel
+
+	// Read Terraform prior state data into the model
+	resp.Diagnostics.Append(req.State.Get(ctx, &data)...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+
+	namespace := data.Namespace.ValueString()
+	if namespace == "" {
+		namespace = r.namespace
+	}
+
+	// Get the VM from Kubernetes
+	gvr := schema.GroupVersionResource{
+		Group:    "kubevirt.io",
+		Version:  "v1",
+		Resource: "virtualmachines",
+	}
+
+	vm, err := r.dynamicClient.Resource(gvr).Namespace(namespace).Get(ctx, data.Name.ValueString(), metav1.GetOptions{})
+	if err != nil {
+		if k8serrors.IsNotFound(err) {
+			resp.State.RemoveResource(ctx)
+			return
+		}
+		resp.Diagnostics.AddError(
+			"Failed to read VirtualMachine",
+			fmt.Sprintf("Error: %v", err),
+		)
+		return
+	}
+
+	// Update the model with current values
+	data.VMStatus = types.StringValue("Running") // This would need more sophisticated status checking
+	data.CreationTimestamp = types.StringValue(vm.GetCreationTimestamp().Format(time.RFC3339))
+
+	// Save updated data into Terraform state
+	resp.Diagnostics.Append(resp.State.Set(ctx, data)...)
+}
+
+// Update updates the resource and sets the updated Terraform state on success.
+func (r *KubeVirtVMResource) Update(ctx context.Context, req resource.UpdateRequest, resp *resource.UpdateResponse) {
+	var data KubeVirtVMResourceModel
+
+	// Read Terraform plan data into the model
+	resp.Diagnostics.Append(req.Plan.Get(ctx, &data)...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+
+	// For now, we'll just recreate the VM on updates
+	// In a production provider, you'd implement proper update logic
+	resp.Diagnostics.AddError(
+		"Update not implemented",
+		"VirtualMachine updates are not yet implemented. Please delete and recreate the VM.",
+	)
+}
+
+// Delete deletes the resource and removes the Terraform state on success.
+func (r *KubeVirtVMResource) Delete(ctx context.Context, req resource.DeleteRequest, resp *resource.DeleteResponse) {
+	var data KubeVirtVMResourceModel
+
+	// Read Terraform prior state data into the model
+	resp.Diagnostics.Append(req.State.Get(ctx, &data)...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+
+	namespace := data.Namespace.ValueString()
+	if namespace == "" {
+		namespace = r.namespace
+	}
+
+	// Delete the VM from Kubernetes
+	gvr := schema.GroupVersionResource{
+		Group:    "kubevirt.io",
+		Version:  "v1",
+		Resource: "virtualmachines",
+	}
+
+	err := r.dynamicClient.Resource(gvr).Namespace(namespace).Delete(ctx, data.Name.ValueString(), metav1.DeleteOptions{})
+	if err != nil && !k8serrors.IsNotFound(err) {
+		resp.Diagnostics.AddError(
+			"Failed to delete VirtualMachine",
+			fmt.Sprintf("Error: %v", err),
+		)
+		return
+	}
+
+	tflog.Info(ctx, "VirtualMachine deleted successfully")
+}
+
+// ImportState imports the resource into Terraform state.
+func (r *KubeVirtVMResource) ImportState(ctx context.Context, req resource.ImportStateRequest, resp *resource.ImportStateResponse) {
+	resource.ImportStatePassthroughID(ctx, path.Root("id"), req, resp)
+}
