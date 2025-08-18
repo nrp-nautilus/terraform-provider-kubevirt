@@ -165,11 +165,11 @@ func (r *KubeVirtVMResource) Configure(ctx context.Context, req resource.Configu
 		return
 	}
 
-	provider, ok := req.ProviderData.(*KubeVirtProvider)
+	provider, ok := req.ProviderData.(KubeVirtProviderModel)
 	if !ok {
 		resp.Diagnostics.AddError(
 			"Unexpected Resource Configure Type",
-			fmt.Sprintf("Expected *KubeVirtProvider, got: %T. Please report this issue to the provider developers.", req.ProviderData),
+			fmt.Sprintf("Expected KubeVirtProviderModel, got: %T. Please report this issue to the provider developers.", req.ProviderData),
 		)
 		return
 	}

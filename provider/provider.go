@@ -56,9 +56,9 @@ func (p *KubeVirtProvider) Configure(ctx context.Context, req provider.Configure
 		return
 	}
 
-	// Example client configuration for data sources and resources
-	resp.DataSourceData = p
-	resp.ResourceData = p
+	// Pass the provider model data to resources and data sources
+	resp.DataSourceData = data
+	resp.ResourceData = data
 }
 
 func (p *KubeVirtProvider) Resources(ctx context.Context) []func() resource.Resource {
