@@ -10,20 +10,20 @@ provider "kubevirt" {
   namespace = "terraform-dev"
 }
 
-# Example resource
-resource "kubevirt_hello_world" "example" {
-  configurable_attribute = "Hello from KubeVirt Provider!"
+# Test the custom provider by creating a Kubernetes pod
+resource "kubevirt_kubernetes_pod" "test" {
+  name      = "test-pod"
+  namespace = "terraform-dev"
+  image     = "busybox:latest"
+  command   = ["/bin/sh"]
+  args      = ["-c", "echo 'Hello from custom provider pod!' && sleep 3600"]
 }
 
-# Example data source
-data "kubevirt_hello_world" "example" {
-  configurable_attribute = "Hello from Data Source!"
+# Output the result
+output "pod_name" {
+  value = kubevirt_kubernetes_pod.test.name
 }
 
-output "resource_id" {
-  value = kubevirt_hello_world.example.id
-}
-
-output "data_source_id" {
-  value = data.kubevirt_hello_world.example.id
+output "pod_status" {
+  value = kubevirt_kubernetes_pod.test.pod_status
 }
