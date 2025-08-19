@@ -2,7 +2,6 @@ package provider
 
 import (
 	"context"
-	"encoding/json"
 	"encoding/base64"
 	"fmt"
 	"strings"
@@ -226,33 +225,8 @@ func (r *KubeVirtVMResource) Configure(ctx context.Context, req resource.Configu
 	r.namespace = namespace
 }
 
-// Create creates the resource and sets the initial Terraform state.
-func (r *KubeVirtVMResource) Create(ctx context.Context, req resource.CreateRequest, resp *resource.CreateResponse) {
-	var data KubeVirtVMResourceModel
-
-	// Read Terraform plan data into the model
-	resp.Diagnostics.Append(req.Plan.Get(ctx, &data)...)
-	if resp.Diagnostics.HasError() {
-		return
-	}
-
-	// Use namespace from resource if specified, otherwise use provider default
-	namespace := r.namespace
-	if !data.Namespace.IsNull() && !data.Namespace.IsUnknown() {
-		namespace = data.Namespace.ValueString()
-	}
-
-	// Check if this is a workspace start transition
-	// Only create VM when workspace is starting
-	if !data.WorkspaceTransition.IsNull() && !data.WorkspaceTransition.IsUnknown() {
-		transition := data.WorkspaceTransition.ValueString()
-		if transition != "start" {
-			// Not starting, just return success without creating VM
-			resp.Diagnostics.Append(resp.State.Set(ctx, data)...)
-			return
-		}
-	}
-
+// createVM is a helper method to create a VM without triggering the full Create flow
+func (r *KubeVirtVMResource) createVM(ctx context.Context, data KubeVirtVMResourceModel, namespace string) (*unstructured.Unstructured, error) {
 	// Create the VM
 	vm := &unstructured.Unstructured{}
 	vm.SetAPIVersion("kubevirt.io/v1")
@@ -511,8 +485,7 @@ runcmd:
 			
 			_, err := r.dynamicClient.Resource(secretGVR).Namespace(namespace).Create(ctx, secret, metav1.CreateOptions{})
 			if err != nil && !k8serrors.IsAlreadyExists(err) {
-				resp.Diagnostics.AddError("Failed to create cloud-init secret", err.Error())
-				return
+				return nil, fmt.Errorf("failed to create cloud-init secret: %w", err)
 			}
 			
 			// Add the secret reference to the VM
@@ -550,6 +523,42 @@ runcmd:
 
 	createdVM, err := r.dynamicClient.Resource(vmGVR).Namespace(namespace).Create(ctx, vm, metav1.CreateOptions{})
 	if err != nil {
+		return nil, fmt.Errorf("failed to create VirtualMachine: %w", err)
+	}
+
+	return createdVM, nil
+}
+
+// Create creates the resource and sets the initial Terraform state.
+func (r *KubeVirtVMResource) Create(ctx context.Context, req resource.CreateRequest, resp *resource.CreateResponse) {
+	var data KubeVirtVMResourceModel
+
+	// Read Terraform plan data into the model
+	resp.Diagnostics.Append(req.Plan.Get(ctx, &data)...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+
+	// Use namespace from resource if specified, otherwise use provider default
+	namespace := r.namespace
+	if !data.Namespace.IsNull() && !data.Namespace.IsUnknown() {
+		namespace = data.Namespace.ValueString()
+	}
+
+	// Check if this is a workspace start transition
+	// Only create VM when workspace is starting
+	if !data.WorkspaceTransition.IsNull() && !data.WorkspaceTransition.IsUnknown() {
+		transition := data.WorkspaceTransition.ValueString()
+		if transition != "start" {
+			// Not starting, just return success without creating VM
+			resp.Diagnostics.Append(resp.State.Set(ctx, data)...)
+			return
+		}
+	}
+
+	// Create the VM
+	vm, err := r.createVM(ctx, data, namespace)
+	if err != nil {
 		resp.Diagnostics.AddError("Failed to create VirtualMachine", err.Error())
 		return
 	}
@@ -557,7 +566,7 @@ runcmd:
 	// Set computed values
 	data.ID = types.StringValue(fmt.Sprintf("%s/%s", namespace, data.Name.ValueString()))
 	data.VMStatus = types.StringValue("Created")
-	data.CreationTimestamp = types.StringValue(createdVM.GetCreationTimestamp().Format(time.RFC3339))
+	data.CreationTimestamp = types.StringValue(vm.GetCreationTimestamp().Format(time.RFC3339))
 	data.WorkspaceTransition = types.StringValue("start") // Indicate successful creation
 
 	// Save data into Terraform state
@@ -648,7 +657,14 @@ func (r *KubeVirtVMResource) Update(ctx context.Context, req resource.UpdateRequ
 			if err != nil {
 				if k8serrors.IsNotFound(err) {
 					// VM doesn't exist, create it
-					resp.Diagnostics.Append(r.createVM(ctx, data, resp)...)
+					createdVM, err := r.createVM(ctx, data, namespace)
+					if err != nil {
+						resp.Diagnostics.AddError("Failed to create VM", err.Error())
+						return
+					}
+					data.VMStatus = types.StringValue("Created")
+					data.CreationTimestamp = types.StringValue(createdVM.GetCreationTimestamp().Format(time.RFC3339))
+					resp.Diagnostics.Append(resp.State.Set(ctx, data)...)
 					return
 				}
 				resp.Diagnostics.AddError("Failed to get VM", err.Error())
