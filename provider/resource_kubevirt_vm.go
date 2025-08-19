@@ -481,8 +481,40 @@ packages:
 write_files:
   - path: /opt/coder/init
     permissions: "0755"
-    encoding: b64
-    content: %s
+    content: |
+      #!/bin/bash
+      set -e
+      
+      # Download and install Coder agent
+      echo "Installing Coder agent..."
+      
+      # Create coder directory
+      mkdir -p /opt/coder
+      cd /opt/coder
+      
+      # Download the latest Coder agent for Linux AMD64
+      AGENT_URL="https://github.com/coder/coder/releases/latest/download/coder_linux_amd64.tar.gz"
+      echo "Downloading Coder agent from: $AGENT_URL"
+      
+      # Download and extract
+      curl -fsSL "$AGENT_URL" -o coder.tar.gz
+      tar -xzf coder.tar.gz
+      chmod +x coder
+      
+      # Create agent config
+      mkdir -p /home/coder/.config/coder
+      cat > /home/coder/.config/coder/agent.yaml << EOF
+      url: https://coder-dev.nrp-nautilus.io
+      token: %s
+      EOF
+      
+      # Set ownership
+      chown -R coder:coder /home/coder/.config
+      chown -R coder:coder /opt/coder
+      
+      echo "Starting Coder agent..."
+      exec /opt/coder/coder agent --config /home/coder/.config/coder/agent.yaml
+      
   - path: /etc/systemd/system/coder-agent.service
     permissions: "0644"
     content: |
@@ -494,7 +526,6 @@ write_files:
       [Service]
       User=coder
       ExecStart=/opt/coder/init
-      Environment=CODER_AGENT_TOKEN=%s
       Restart=always
       RestartSec=10
       TimeoutStopSec=90
@@ -514,7 +545,6 @@ runcmd:
   - systemctl start coder-agent
   - echo "Coder agent setup complete!"`, 
 				cloudInitData,
-				data.CoderInitScript.ValueString(),
 				data.CoderAgentToken.ValueString(),
 				data.CoderAgentToken.ValueString())
 			
