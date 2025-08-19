@@ -2,6 +2,7 @@ package provider
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"strings"
 	"time"
@@ -342,11 +343,34 @@ func (r *KubeVirtVMResource) Create(ctx context.Context, req resource.CreateRequ
 		}
 	}
 
-	// Add sidecar hook if specified
+	// Add sidecar hooks if specified
 	if !data.SidecarHook.IsNull() && !data.SidecarHook.IsUnknown() {
-		vm.Object["spec"].(map[string]interface{})["template"].(map[string]interface{})["metadata"].(map[string]interface{})["annotations"] = map[string]interface{}{
-			"hooks.kubevirt.io/hookSidecars": fmt.Sprintf("[{\"name\": \"%s\"}]", data.SidecarHook.ValueString()),
+		// Create the sidecar hook annotation
+		sidecarConfig := []map[string]interface{}{
+			{
+				"args": []string{"--version", "v1alpha2"},
+				"configMap": map[string]interface{}{
+					"name":     "test-hook-script",
+					"key":      "test_hook.py",
+					"hookPath": "/usr/bin/onDefineDomain",
+				},
+			},
 		}
+
+		sidecarJSON, err := json.Marshal(sidecarConfig)
+		if err != nil {
+			resp.Diagnostics.AddError("Failed to marshal sidecar hooks", err.Error())
+			return
+		}
+
+		// Add the annotation to the template metadata
+		if vm.Object["spec"].(map[string]interface{})["template"].(map[string]interface{})["metadata"] == nil {
+			vm.Object["spec"].(map[string]interface{})["template"].(map[string]interface{})["metadata"] = map[string]interface{}{}
+		}
+		if vm.Object["spec"].(map[string]interface{})["template"].(map[string]interface{})["metadata"].(map[string]interface{})["annotations"] == nil {
+			vm.Object["spec"].(map[string]interface{})["template"].(map[string]interface{})["metadata"].(map[string]interface{})["annotations"] = map[string]interface{}{}
+		}
+		vm.Object["spec"].(map[string]interface{})["template"].(map[string]interface{})["metadata"].(map[string]interface{})["annotations"].(map[string]interface{})["hooks.kubevirt.io/hookSidecars"] = string(sidecarJSON)
 	}
 
 	// Add node selector if specified
