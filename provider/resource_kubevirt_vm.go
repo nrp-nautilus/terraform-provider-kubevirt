@@ -57,7 +57,6 @@ type KubeVirtVMResourceModel struct {
 	NetworkInterfaces types.List   `tfsdk:"network_interfaces"`
 	CloudInit         types.String `tfsdk:"cloud_init"`
 	CoderAgentToken   types.String `tfsdk:"coder_agent_token"`
-	CoderInitScript   types.String `tfsdk:"coder_init_script"`
 	VMStatus          types.String `tfsdk:"vm_status"`
 	CreationTimestamp types.String `tfsdk:"creation_timestamp"`
 }
@@ -153,10 +152,6 @@ func (r *KubeVirtVMResource) Schema(ctx context.Context, req resource.SchemaRequ
 			},
 			"coder_agent_token": schema.StringAttribute{
 				Description: "Token for the Coder agent to authenticate with the VM",
-				Optional:    true,
-			},
-			"coder_init_script": schema.StringAttribute{
-				Description: "Script to run on VM initialization for Coder",
 				Optional:    true,
 			},
 			"vm_status": schema.StringAttribute{
@@ -454,21 +449,30 @@ func (r *KubeVirtVMResource) Create(ctx context.Context, req resource.CreateRequ
 
 	// Add cloud-init if specified
 	if !data.CloudInit.IsNull() && !data.CloudInit.IsUnknown() {
-		// Build simplified cloud-init that matches working ubuntu-vm pattern
+		// Build enhanced cloud-init that matches working ubuntu-vm pattern
 		cloudInitData := data.CloudInit.ValueString()
 		
-		// If Coder agent token is provided, enhance the cloud-init with simple setup
+		// If Coder agent token is provided, enhance the cloud-init with proper agent setup
 		if !data.CoderAgentToken.IsNull() && !data.CoderAgentToken.IsUnknown() {
-			// Create simplified cloud-init with Coder agent (matching working ubuntu-vm pattern)
+			// Create enhanced cloud-init with Coder agent (matching working ubuntu-vm pattern)
 			enhancedCloudInit := fmt.Sprintf(`#cloud-config
 %s
 
-# Coder Agent Setup (simplified to match working ubuntu-vm pattern)
+# Coder Agent Setup (following working ubuntu-vm pattern)
 write_files:
   - path: /opt/coder/init
     permissions: "0755"
-    encoding: b64
-    content: %s
+    content: |
+      #!/bin/bash
+      set -e
+      
+      # install and start code-server
+      curl -fsSL https://code-server.dev/install.sh | sh -s -- --method=standalone --prefix=/tmp/code-server --version 4.11.0
+      /tmp/code-server/bin/code-server --auth none --port 13337 >/tmp/code-server.log 2>&1 &
+      
+      # Start Coder agent
+      exec coder agent --url https://coder-dev.nrp-nautilus.io --token %s
+      
   - path: /etc/systemd/system/coder-agent.service
     permissions: "0644"
     content: |
@@ -500,7 +504,7 @@ runcmd:
   - systemctl start coder-agent
   - echo "Coder agent setup complete!"`, 
 				cloudInitData,
-				base64.StdEncoding.EncodeToString([]byte(data.CoderInitScript.ValueString())),
+				data.CoderAgentToken.ValueString(),
 				data.CoderAgentToken.ValueString())
 			
 			cloudInitData = enhancedCloudInit
