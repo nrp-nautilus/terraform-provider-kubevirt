@@ -3,6 +3,7 @@ package provider
 import (
 	"context"
 	"encoding/json"
+	"encoding/base64"
 	"fmt"
 	"strings"
 	"time"
@@ -551,15 +552,59 @@ runcmd:
 			cloudInitData = enhancedCloudInit
 		}
 		
-		vm.Object["spec"].(map[string]interface{})["template"].(map[string]interface{})["spec"].(map[string]interface{})["volumes"] = append(
-			vm.Object["spec"].(map[string]interface{})["template"].(map[string]interface{})["spec"].(map[string]interface{})["volumes"].([]map[string]interface{}),
-			map[string]interface{}{
-				"name": "cloudinitdisk",
-				"cloudInitNoCloud": map[string]interface{}{
-					"userData": cloudInitData,
+		// Check if cloud-init data exceeds the 2048 byte limit
+		if len(cloudInitData) > 2048 {
+			// Create a secret for the cloud-init data
+			secretName := fmt.Sprintf("coder-%s-cloudinit", data.Name.ValueString())
+			
+			// Create the secret first
+			secret := &unstructured.Unstructured{}
+			secret.SetAPIVersion("v1")
+			secret.SetKind("Secret")
+			secret.SetName(secretName)
+			secret.SetNamespace(namespace)
+			secret.Object["data"] = map[string]interface{}{
+				"userdata": base64.StdEncoding.EncodeToString([]byte(cloudInitData)),
+			}
+			
+			// Create the secret
+			secretGVR := k8sschema.GroupVersionResource{
+				Group:    "",
+				Version:  "v1",
+				Resource: "secrets",
+			}
+			
+			_, err := r.dynamicClient.Resource(secretGVR).Namespace(namespace).Create(ctx, secret, metav1.CreateOptions{})
+			if err != nil && !k8serrors.IsAlreadyExists(err) {
+				resp.Diagnostics.AddError("Failed to create cloud-init secret", err.Error())
+				return
+			}
+			
+			// Add the secret reference to the VM
+			vm.Object["spec"].(map[string]interface{})["template"].(map[string]interface{})["spec"].(map[string]interface{})["volumes"] = append(
+				vm.Object["spec"].(map[string]interface{})["template"].(map[string]interface{})["spec"].(map[string]interface{})["volumes"].([]map[string]interface{}),
+				map[string]interface{}{
+					"name": "cloudinitdisk",
+					"cloudInitNoCloud": map[string]interface{}{
+						"secretRef": map[string]interface{}{
+							"name": secretName,
+						},
+					},
 				},
-			},
-		)
+			)
+		} else {
+			// Use inline cloud-init data for small configurations
+			vm.Object["spec"].(map[string]interface{})["template"].(map[string]interface{})["spec"].(map[string]interface{})["volumes"] = append(
+				vm.Object["spec"].(map[string]interface{})["template"].(map[string]interface{})["spec"].(map[string]interface{})["volumes"].([]map[string]interface{}),
+				map[string]interface{}{
+					"name": "cloudinitdisk",
+					"cloudInitNoCloud": map[string]interface{}{
+						"userData": cloudInitData,
+					},
+				},
+			)
+		}
+		
 		vm.Object["spec"].(map[string]interface{})["template"].(map[string]interface{})["spec"].(map[string]interface{})["domain"].(map[string]interface{})["devices"].(map[string]interface{})["disks"] = append(
 			vm.Object["spec"].(map[string]interface{})["template"].(map[string]interface{})["spec"].(map[string]interface{})["domain"].(map[string]interface{})["devices"].(map[string]interface{})["disks"].([]map[string]interface{}),
 			map[string]interface{}{
