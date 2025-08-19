@@ -3,6 +3,7 @@ package provider
 import (
 	"context"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/hashicorp/terraform-plugin-framework/path"
@@ -53,6 +54,8 @@ type KubeVirtVMResourceModel struct {
 	USBDevices        types.List   `tfsdk:"usb_devices"`
 	NetworkInterfaces types.List   `tfsdk:"network_interfaces"`
 	CloudInit         types.String `tfsdk:"cloud_init"`
+	CoderAgentToken   types.String `tfsdk:"coder_agent_token"`
+	CoderInitScript   types.String `tfsdk:"coder_init_script"`
 	VMStatus          types.String `tfsdk:"vm_status"`
 	CreationTimestamp types.String `tfsdk:"creation_timestamp"`
 }
@@ -144,6 +147,14 @@ func (r *KubeVirtVMResource) Schema(ctx context.Context, req resource.SchemaRequ
 			},
 			"cloud_init": schema.StringAttribute{
 				Description: "Cloud-init user data",
+				Optional:    true,
+			},
+			"coder_agent_token": schema.StringAttribute{
+				Description: "Token for the Coder agent to authenticate with the VM",
+				Optional:    true,
+			},
+			"coder_init_script": schema.StringAttribute{
+				Description: "Script to run on VM initialization for Coder",
 				Optional:    true,
 			},
 			"vm_status": schema.StringAttribute{
@@ -338,9 +349,32 @@ func (r *KubeVirtVMResource) Create(ctx context.Context, req resource.CreateRequ
 		// Convert string tolerations to proper toleration objects
 		tolObjects := make([]map[string]interface{}, len(tolerations))
 		for i, tol := range tolerations {
-			tolObjects[i] = map[string]interface{}{
-				"key":    tol,
-				"effect": "NoSchedule",
+			// Parse toleration format: "key=value:effect" or "key:effect"
+			parts := strings.Split(tol, ":")
+			if len(parts) >= 2 {
+				effect := parts[len(parts)-1] // Last part is the effect
+				keyValue := strings.Join(parts[:len(parts)-1], ":") // Everything before the last colon
+				
+				tolObj := map[string]interface{}{
+					"effect": effect,
+				}
+				
+				// Check if key has a value (key=value format)
+				if strings.Contains(keyValue, "=") {
+					kvParts := strings.SplitN(keyValue, "=", 2)
+					tolObj["key"] = kvParts[0]
+					tolObj["value"] = kvParts[1]
+				} else {
+					tolObj["key"] = keyValue
+				}
+				
+				tolObjects[i] = tolObj
+			} else {
+				// Fallback: treat as key only
+				tolObjects[i] = map[string]interface{}{
+					"key":    tol,
+					"effect": "NoSchedule",
+				}
 			}
 		}
 		vm.Object["spec"].(map[string]interface{})["template"].(map[string]interface{})["spec"].(map[string]interface{})["tolerations"] = tolObjects
@@ -378,12 +412,80 @@ func (r *KubeVirtVMResource) Create(ctx context.Context, req resource.CreateRequ
 
 	// Add cloud-init if specified
 	if !data.CloudInit.IsNull() && !data.CloudInit.IsUnknown() {
+		// Build enhanced cloud-init with Coder agent support if provided
+		cloudInitData := data.CloudInit.ValueString()
+		
+		// If Coder agent token is provided, enhance the cloud-init
+		if !data.CoderAgentToken.IsNull() && !data.CoderAgentToken.IsUnknown() {
+			// Create enhanced cloud-init with Coder agent
+			enhancedCloudInit := fmt.Sprintf(`#cloud-config
+%s
+
+# Coder Agent Setup
+users:
+  - name: coder
+    sudo: ALL=(ALL) NOPASSWD:ALL
+    shell: /bin/bash
+    home: /home/coder
+    groups: [sudo, docker]
+
+packages:
+  - curl
+  - wget
+  - git
+  - vim
+  - python3
+  - systemd
+
+write_files:
+  - path: /opt/coder/init
+    permissions: "0755"
+    encoding: b64
+    content: %s
+  - path: /etc/systemd/system/coder-agent.service
+    permissions: "0644"
+    content: |
+      [Unit]
+      Description=Coder Agent
+      After=network-online.target
+      Wants=network-online.target
+      
+      [Service]
+      User=coder
+      ExecStart=/opt/coder/init
+      Environment=CODER_AGENT_TOKEN=%s
+      Restart=always
+      RestartSec=10
+      TimeoutStopSec=90
+      KillMode=process
+      OOMScoreAdjust=-900
+      SyslogIdentifier=coder-agent
+      
+      [Install]
+      WantedBy=multi-user.target
+
+bootcmd:
+  - mkdir -p /var/run/secrets
+  - echo CODER_AGENT_TOKEN=%s > /var/run/secrets/.coder-agent-token
+
+runcmd:
+  - systemctl enable coder-agent
+  - systemctl start coder-agent
+  - echo "Coder agent setup complete!"`, 
+				cloudInitData,
+				data.CoderInitScript.ValueString(),
+				data.CoderAgentToken.ValueString(),
+				data.CoderAgentToken.ValueString())
+			
+			cloudInitData = enhancedCloudInit
+		}
+		
 		vm.Object["spec"].(map[string]interface{})["template"].(map[string]interface{})["spec"].(map[string]interface{})["volumes"] = append(
 			vm.Object["spec"].(map[string]interface{})["template"].(map[string]interface{})["spec"].(map[string]interface{})["volumes"].([]map[string]interface{}),
 			map[string]interface{}{
 				"name": "cloudinitdisk",
 				"cloudInitNoCloud": map[string]interface{}{
-					"userData": data.CloudInit.ValueString(),
+					"userData": cloudInitData,
 				},
 			},
 		)
