@@ -59,6 +59,7 @@ type KubeVirtVMResourceModel struct {
 	CoderAgentToken   types.String `tfsdk:"coder_agent_token"`
 	VMStatus          types.String `tfsdk:"vm_status"`
 	CreationTimestamp types.String `tfsdk:"creation_timestamp"`
+	WorkspaceTransition types.String `tfsdk:"workspace_transition"`
 }
 
 func NewKubeVirtVMResource() resource.Resource {
@@ -162,6 +163,10 @@ func (r *KubeVirtVMResource) Schema(ctx context.Context, req resource.SchemaRequ
 				Description: "Timestamp when the VM was created",
 				Computed:    true,
 			},
+			"workspace_transition": schema.StringAttribute{
+				Description: "Workspace transition state (start, stop, delete)",
+				Computed:    true,
+			},
 		},
 	}
 }
@@ -232,66 +237,82 @@ func (r *KubeVirtVMResource) Create(ctx context.Context, req resource.CreateRequ
 	}
 
 	// Use namespace from resource if specified, otherwise use provider default
-	namespace := data.Namespace.ValueString()
-	if namespace == "" {
-		namespace = r.namespace
+	namespace := r.namespace
+	if !data.Namespace.IsNull() && !data.Namespace.IsUnknown() {
+		namespace = data.Namespace.ValueString()
 	}
 
+	// Check if this is a workspace start transition
+	// Only create VM when workspace is starting
+	if !data.WorkspaceTransition.IsNull() && !data.WorkspaceTransition.IsUnknown() {
+		transition := data.WorkspaceTransition.ValueString()
+		if transition != "start" {
+			// Not starting, just return success without creating VM
+			resp.Diagnostics.Append(resp.State.Set(ctx, data)...)
+			return
+		}
+	}
+
+	// Create the VM
+	vm := &unstructured.Unstructured{}
+	vm.SetAPIVersion("kubevirt.io/v1")
+	vm.SetKind("VirtualMachine")
+	vm.SetName(data.Name.ValueString())
+	vm.SetNamespace(namespace)
+
 	// Create the VirtualMachine manifest
-	vm := &unstructured.Unstructured{
-		Object: map[string]interface{}{
-			"apiVersion": "kubevirt.io/v1",
-			"kind":       "VirtualMachine",
-			"metadata": map[string]interface{}{
-				"name":      data.Name.ValueString(),
-				"namespace": namespace,
-			},
-			"spec": map[string]interface{}{
-				"running": true,
-				"template": map[string]interface{}{
-					"metadata": map[string]interface{}{
-						"labels": map[string]interface{}{
-							"kubevirt.io/vm": data.Name.ValueString(),
+	vm.Object = map[string]interface{}{
+		"apiVersion": "kubevirt.io/v1",
+		"kind":       "VirtualMachine",
+		"metadata": map[string]interface{}{
+			"name":      data.Name.ValueString(),
+			"namespace": namespace,
+		},
+		"spec": map[string]interface{}{
+			"running": true,
+			"template": map[string]interface{}{
+				"metadata": map[string]interface{}{
+					"labels": map[string]interface{}{
+						"kubevirt.io/vm": data.Name.ValueString(),
+					},
+				},
+				"spec": map[string]interface{}{
+					"domain": map[string]interface{}{
+						"devices": map[string]interface{}{
+							"disks": []map[string]interface{}{
+								{
+									"name": "containerdisk",
+									"disk": map[string]interface{}{
+										"bus": "virtio",
+									},
+								},
+							},
+							"interfaces": []map[string]interface{}{
+								{
+									"name": "default",
+									"bridge": map[string]interface{}{},
+								},
+							},
+						},
+						"resources": map[string]interface{}{
+							"requests": map[string]interface{}{
+								"memory": data.Memory.ValueString(),
+								"cpu":    data.CPU.ValueInt64(),
+							},
 						},
 					},
-					"spec": map[string]interface{}{
-						"domain": map[string]interface{}{
-							"devices": map[string]interface{}{
-								"disks": []map[string]interface{}{
-									{
-										"name": "containerdisk",
-										"disk": map[string]interface{}{
-											"bus": "virtio",
-										},
-									},
-								},
-								"interfaces": []map[string]interface{}{
-									{
-										"name": "default",
-										"bridge": map[string]interface{}{},
-									},
-								},
-							},
-							"resources": map[string]interface{}{
-								"requests": map[string]interface{}{
-									"memory": data.Memory.ValueString(),
-									"cpu":    data.CPU.ValueInt64(),
-								},
+					"volumes": []map[string]interface{}{
+						{
+							"name": "containerdisk",
+							"containerDisk": map[string]interface{}{
+								"image": data.Image.ValueString(),
 							},
 						},
-						"volumes": []map[string]interface{}{
-							{
-								"name": "containerdisk",
-								"containerDisk": map[string]interface{}{
-									"image": data.Image.ValueString(),
-								},
-							},
-						},
-						"networks": []map[string]interface{}{
-							{
-								"name": "default",
-								"pod":  map[string]interface{}{},
-							},
+					},
+					"networks": []map[string]interface{}{
+						{
+							"name": "default",
+							"pod":  map[string]interface{}{},
 						},
 					},
 				},
@@ -299,79 +320,36 @@ func (r *KubeVirtVMResource) Create(ctx context.Context, req resource.CreateRequ
 		},
 	}
 
-	// Add optional fields if specified
+	// Add machine type if specified
 	if !data.MachineType.IsNull() && !data.MachineType.IsUnknown() {
 		vm.Object["spec"].(map[string]interface{})["template"].(map[string]interface{})["spec"].(map[string]interface{})["domain"].(map[string]interface{})["machine"] = map[string]interface{}{
 			"type": data.MachineType.ValueString(),
 		}
 	}
 
+	// Add architecture if specified
 	if !data.Architecture.IsNull() && !data.Architecture.IsUnknown() {
 		vm.Object["spec"].(map[string]interface{})["template"].(map[string]interface{})["spec"].(map[string]interface{})["domain"].(map[string]interface{})["cpu"] = map[string]interface{}{
 			"architecture": data.Architecture.ValueString(),
 		}
 	}
 
-	// Add memory configuration
+	// Add hugepages if specified
 	if !data.Hugepages.IsNull() && !data.Hugepages.IsUnknown() {
-		vm.Object["spec"].(map[string]interface{})["template"].(map[string]interface{})["spec"].(map[string]interface{})["domain"].(map[string]interface{})["resources"] = map[string]interface{}{
-			"limits": map[string]interface{}{
-				"cpu":            data.CPU.ValueInt64(),
-				"hugepages-1Gi": data.Hugepages.ValueString(),
-				"memory":         data.Memory.ValueString(),
-			},
-			"requests": map[string]interface{}{
-				"cpu":            data.CPU.ValueInt64(),
-				"hugepages-1Gi": data.Hugepages.ValueString(),
-				"memory":         data.Memory.ValueString(),
-			},
-		}
-	} else {
-		vm.Object["spec"].(map[string]interface{})["template"].(map[string]interface{})["spec"].(map[string]interface{})["domain"].(map[string]interface{})["resources"] = map[string]interface{}{
-			"limits": map[string]interface{}{
-				"cpu":    data.CPU.ValueInt64(),
-				"memory": data.Memory.ValueString(),
-			},
-			"requests": map[string]interface{}{
-				"cpu":    data.CPU.ValueInt64(),
-				"memory": data.Memory.ValueString(),
-			},
-		}
+		hugepagesValue := data.Hugepages.ValueString()
+		vm.Object["spec"].(map[string]interface{})["template"].(map[string]interface{})["spec"].(map[string]interface{})["domain"].(map[string]interface{})["resources"].(map[string]interface{})["requests"].(map[string]interface{})["hugepages-"+hugepagesValue] = hugepagesValue
 	}
 
-	// Add sidecar hooks if specified
+	// Add sidecar hook if specified
 	if !data.SidecarHook.IsNull() && !data.SidecarHook.IsUnknown() {
-		// Create the sidecar hook annotation
-		sidecarConfig := []map[string]interface{}{
-			{
-				"args": []string{"--version", "v1alpha2"},
-				"configMap": map[string]interface{}{
-					"name":     "test-hook-script",
-					"key":      "test_hook.py",
-					"hookPath": "/usr/bin/onDefineDomain",
-				},
-			},
+		vm.Object["spec"].(map[string]interface{})["template"].(map[string]interface{})["metadata"].(map[string]interface{})["annotations"] = map[string]interface{}{
+			"hooks.kubevirt.io/hookSidecars": fmt.Sprintf(`[{"args":["--version","v1alpha2"],"configMap":{"hookPath":"/usr/bin/onDefineDomain","key":"%s.py","name":"%s"}}]`, data.SidecarHook.ValueString(), data.SidecarHook.ValueString()),
 		}
-
-		sidecarJSON, err := json.Marshal(sidecarConfig)
-		if err != nil {
-			resp.Diagnostics.AddError("Failed to marshal sidecar hooks", err.Error())
-			return
-		}
-
-		// Add the annotation to the template metadata
-		if vm.Object["spec"].(map[string]interface{})["template"].(map[string]interface{})["metadata"] == nil {
-			vm.Object["spec"].(map[string]interface{})["template"].(map[string]interface{})["metadata"] = map[string]interface{}{}
-		}
-		if vm.Object["spec"].(map[string]interface{})["template"].(map[string]interface{})["metadata"].(map[string]interface{})["annotations"] == nil {
-			vm.Object["spec"].(map[string]interface{})["template"].(map[string]interface{})["metadata"].(map[string]interface{})["annotations"] = map[string]interface{}{}
-		}
-		vm.Object["spec"].(map[string]interface{})["template"].(map[string]interface{})["metadata"].(map[string]interface{})["annotations"].(map[string]interface{})["hooks.kubevirt.io/hookSidecars"] = string(sidecarJSON)
 	}
 
 	// Add node selector if specified
 	if !data.NodeSelector.IsNull() && !data.NodeSelector.IsUnknown() {
-		nodeSelector := make(map[string]string)
+		var nodeSelector map[string]string
 		data.NodeSelector.ElementsAs(ctx, &nodeSelector, false)
 		vm.Object["spec"].(map[string]interface{})["template"].(map[string]interface{})["spec"].(map[string]interface{})["nodeSelector"] = nodeSelector
 	}
@@ -380,14 +358,13 @@ func (r *KubeVirtVMResource) Create(ctx context.Context, req resource.CreateRequ
 	if !data.Tolerations.IsNull() && !data.Tolerations.IsUnknown() {
 		var tolerations []string
 		data.Tolerations.ElementsAs(ctx, &tolerations, false)
-		// Convert string tolerations to proper toleration objects
 		tolObjects := make([]map[string]interface{}, len(tolerations))
 		for i, tol := range tolerations {
-			// Parse toleration format: "key=value:effect" or "key:effect"
-			parts := strings.Split(tol, ":")
-			if len(parts) >= 2 {
-				effect := parts[len(parts)-1] // Last part is the effect
-				keyValue := strings.Join(parts[:len(parts)-1], ":") // Everything before the last colon
+			if strings.Contains(tol, ":") {
+				// Parse key:effect format
+				parts := strings.SplitN(tol, ":", 2)
+				keyValue := parts[0]
+				effect := parts[1]
 				
 				tolObj := map[string]interface{}{
 					"effect": effect,
@@ -564,26 +541,24 @@ runcmd:
 		}
 	}
 
-	// Create the VM using dynamic client
-	gvr := k8sschema.GroupVersionResource{
+	// Create the VM in Kubernetes
+	vmGVR := k8sschema.GroupVersionResource{
 		Group:    "kubevirt.io",
 		Version:  "v1",
 		Resource: "virtualmachines",
 	}
 
-	createdVM, err := r.dynamicClient.Resource(gvr).Namespace(namespace).Create(ctx, vm, metav1.CreateOptions{})
+	createdVM, err := r.dynamicClient.Resource(vmGVR).Namespace(namespace).Create(ctx, vm, metav1.CreateOptions{})
 	if err != nil {
-		resp.Diagnostics.AddError(
-			"Failed to create VirtualMachine",
-			fmt.Sprintf("Error: %v", err),
-		)
+		resp.Diagnostics.AddError("Failed to create VirtualMachine", err.Error())
 		return
 	}
 
-	// Set computed fields
-	data.ID = types.StringValue(string(createdVM.GetUID()))
+	// Set computed values
+	data.ID = types.StringValue(fmt.Sprintf("%s/%s", namespace, data.Name.ValueString()))
 	data.VMStatus = types.StringValue("Created")
 	data.CreationTimestamp = types.StringValue(createdVM.GetCreationTimestamp().Format(time.RFC3339))
+	data.WorkspaceTransition = types.StringValue("start") // Indicate successful creation
 
 	// Save data into Terraform state
 	resp.Diagnostics.Append(resp.State.Set(ctx, data)...)
@@ -627,6 +602,7 @@ func (r *KubeVirtVMResource) Read(ctx context.Context, req resource.ReadRequest,
 	// Update the model with current values
 	data.VMStatus = types.StringValue("Running") // This would need more sophisticated status checking
 	data.CreationTimestamp = types.StringValue(vm.GetCreationTimestamp().Format(time.RFC3339))
+	data.WorkspaceTransition = types.StringValue("start") // Assume running state means start transition
 
 	// Save updated data into Terraform state
 	resp.Diagnostics.Append(resp.State.Set(ctx, data)...)
@@ -642,12 +618,98 @@ func (r *KubeVirtVMResource) Update(ctx context.Context, req resource.UpdateRequ
 		return
 	}
 
-	// For now, we'll just recreate the VM on updates
-	// In a production provider, you'd implement proper update logic
-	resp.Diagnostics.AddError(
-		"Update not implemented",
-		"VirtualMachine updates are not yet implemented. Please delete and recreate the VM.",
-	)
+	// Use namespace from resource if specified, otherwise use provider default
+	namespace := r.namespace
+	if !data.Namespace.IsNull() && !data.Namespace.IsUnknown() {
+		namespace = data.Namespace.ValueString()
+	}
+
+	// Get the current state to check for transitions
+	var state KubeVirtVMResourceModel
+	resp.Diagnostics.Append(req.State.Get(ctx, &state)...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+
+	// Check if this is a workspace transition
+	if !data.WorkspaceTransition.IsNull() && !data.WorkspaceTransition.IsUnknown() {
+		oldTransition := state.WorkspaceTransition.ValueString()
+		newTransition := data.WorkspaceTransition.ValueString()
+		
+		// Handle start transition
+		if newTransition == "start" && oldTransition != "start" {
+			// Starting the workspace - ensure VM is running
+			vm, err := r.dynamicClient.Resource(k8sschema.GroupVersionResource{
+				Group:    "kubevirt.io",
+				Version:  "v1",
+				Resource: "virtualmachines",
+			}).Namespace(namespace).Get(ctx, data.Name.ValueString(), metav1.GetOptions{})
+			
+			if err != nil {
+				if k8serrors.IsNotFound(err) {
+					// VM doesn't exist, create it
+					resp.Diagnostics.Append(r.createVM(ctx, data, resp)...)
+					return
+				}
+				resp.Diagnostics.AddError("Failed to get VM", err.Error())
+				return
+			}
+			
+			// VM exists, ensure it's running
+			vm.Object["spec"].(map[string]interface{})["running"] = true
+			_, err = r.dynamicClient.Resource(k8sschema.GroupVersionResource{
+				Group:    "kubevirt.io",
+				Version:  "v1",
+				Resource: "virtualmachines",
+			}).Namespace(namespace).Update(ctx, vm, metav1.UpdateOptions{})
+			
+			if err != nil {
+				resp.Diagnostics.AddError("Failed to start VM", err.Error())
+				return
+			}
+			
+			data.VMStatus = types.StringValue("Running")
+		}
+		
+		// Handle stop transition
+		if newTransition == "stop" && oldTransition != "stop" {
+			// Stopping the workspace - stop the VM
+			vm, err := r.dynamicClient.Resource(k8sschema.GroupVersionResource{
+				Group:    "kubevirt.io",
+				Version:  "v1",
+				Resource: "virtualmachines",
+			}).Namespace(namespace).Get(ctx, data.Name.ValueString(), metav1.GetOptions{})
+			
+			if err != nil {
+				if k8serrors.IsNotFound(err) {
+					// VM doesn't exist, that's fine
+					data.VMStatus = types.StringValue("Stopped")
+					resp.Diagnostics.Append(resp.State.Set(ctx, data)...)
+					return
+				}
+				resp.Diagnostics.AddError("Failed to get VM", err.Error())
+				return
+			}
+			
+			// Stop the VM
+			vm.Object["spec"].(map[string]interface{})["running"] = false
+			_, err = r.dynamicClient.Resource(k8sschema.GroupVersionResource{
+				Group:    "kubevirt.io",
+				Version:  "v1",
+				Resource: "virtualmachines",
+			}).Namespace(namespace).Update(ctx, vm, metav1.UpdateOptions{})
+			
+			if err != nil {
+				resp.Diagnostics.AddError("Failed to stop VM", err.Error())
+				return
+			}
+			
+			data.VMStatus = types.StringValue("Stopped")
+		}
+	}
+
+	// Save updated data into Terraform state
+	resp.Diagnostics.Append(resp.State.Set(ctx, data)...)
 }
 
 // Delete deletes the resource and removes the Terraform state on success.
@@ -663,6 +725,17 @@ func (r *KubeVirtVMResource) Delete(ctx context.Context, req resource.DeleteRequ
 	namespace := data.Namespace.ValueString()
 	if namespace == "" {
 		namespace = r.namespace
+	}
+
+	// Check if this is a workspace stop or delete transition
+	// Only delete VM when workspace is stopping or deleting
+	if !data.WorkspaceTransition.IsNull() && !data.WorkspaceTransition.IsUnknown() {
+		transition := data.WorkspaceTransition.ValueString()
+		if transition != "stop" && transition != "delete" {
+			// Not stopping or deleting, just return success
+			resp.Diagnostics.Append(resp.State.Set(ctx, data)...)
+			return
+		}
 	}
 
 	// Delete the VM from Kubernetes
