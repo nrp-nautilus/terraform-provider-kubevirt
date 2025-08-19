@@ -454,68 +454,21 @@ func (r *KubeVirtVMResource) Create(ctx context.Context, req resource.CreateRequ
 
 	// Add cloud-init if specified
 	if !data.CloudInit.IsNull() && !data.CloudInit.IsUnknown() {
-		// Build enhanced cloud-init with Coder agent support if provided
+		// Build simplified cloud-init that matches working ubuntu-vm pattern
 		cloudInitData := data.CloudInit.ValueString()
 		
-		// If Coder agent token is provided, enhance the cloud-init
+		// If Coder agent token is provided, enhance the cloud-init with simple setup
 		if !data.CoderAgentToken.IsNull() && !data.CoderAgentToken.IsUnknown() {
-			// Create enhanced cloud-init with Coder agent
+			// Create simplified cloud-init with Coder agent (matching working ubuntu-vm pattern)
 			enhancedCloudInit := fmt.Sprintf(`#cloud-config
 %s
 
-# Coder Agent Setup
-users:
-  - name: coder
-    sudo: ALL=(ALL) NOPASSWD:ALL
-    shell: /bin/bash
-    home: /home/coder
-    groups: [sudo, docker]
-
-packages:
-  - curl
-  - wget
-  - git
-  - vim
-  - python3
-  - systemd
-
+# Coder Agent Setup (simplified to match working ubuntu-vm pattern)
 write_files:
   - path: /opt/coder/init
     permissions: "0755"
-    content: |
-      #!/bin/bash
-      set -e
-      
-      # Download and install Coder agent
-      echo "Installing Coder agent..."
-      
-      # Create coder directory
-      mkdir -p /opt/coder
-      cd /opt/coder
-      
-      # Download the latest Coder agent for Linux AMD64
-      AGENT_URL="https://github.com/coder/coder/releases/latest/download/coder_linux_amd64.tar.gz"
-      echo "Downloading Coder agent from: $AGENT_URL"
-      
-      # Download and extract
-      curl -fsSL "$AGENT_URL" -o coder.tar.gz
-      tar -xzf coder.tar.gz
-      chmod +x coder
-      
-      # Create agent config
-      mkdir -p /home/coder/.config/coder
-      cat > /home/coder/.config/coder/agent.yaml << EOF
-      url: https://coder-dev.nrp-nautilus.io
-      token: %s
-      EOF
-      
-      # Set ownership
-      chown -R coder:coder /home/coder/.config
-      chown -R coder:coder /opt/coder
-      
-      echo "Starting Coder agent..."
-      exec /opt/coder/coder agent --config /home/coder/.config/coder/agent.yaml
-      
+    encoding: b64
+    content: %s
   - path: /etc/systemd/system/coder-agent.service
     permissions: "0644"
     content: |
@@ -527,6 +480,7 @@ write_files:
       [Service]
       User=coder
       ExecStart=/opt/coder/init
+      EnvironmentFile=/var/run/secrets/.coder-agent-token
       Restart=always
       RestartSec=10
       TimeoutStopSec=90
@@ -546,7 +500,7 @@ runcmd:
   - systemctl start coder-agent
   - echo "Coder agent setup complete!"`, 
 				cloudInitData,
-				data.CoderAgentToken.ValueString(),
+				base64.StdEncoding.EncodeToString([]byte(data.CoderInitScript.ValueString())),
 				data.CoderAgentToken.ValueString())
 			
 			cloudInitData = enhancedCloudInit
@@ -604,16 +558,6 @@ runcmd:
 				},
 			)
 		}
-		
-		vm.Object["spec"].(map[string]interface{})["template"].(map[string]interface{})["spec"].(map[string]interface{})["domain"].(map[string]interface{})["devices"].(map[string]interface{})["disks"] = append(
-			vm.Object["spec"].(map[string]interface{})["template"].(map[string]interface{})["spec"].(map[string]interface{})["domain"].(map[string]interface{})["devices"].(map[string]interface{})["disks"].([]map[string]interface{}),
-			map[string]interface{}{
-				"name": "cloudinitdisk",
-				"disk": map[string]interface{}{
-					"bus": "virtio",
-				},
-			},
-		)
 	}
 
 	// Create the VM using dynamic client
