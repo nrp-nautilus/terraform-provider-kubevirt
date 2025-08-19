@@ -312,6 +312,10 @@ func (r *KubeVirtVMResource) createVM(ctx context.Context, data KubeVirtVMResour
 	if !data.Hugepages.IsNull() && !data.Hugepages.IsUnknown() {
 		hugepagesValue := data.Hugepages.ValueString()
 		vm.Object["spec"].(map[string]interface{})["template"].(map[string]interface{})["spec"].(map[string]interface{})["domain"].(map[string]interface{})["resources"].(map[string]interface{})["requests"].(map[string]interface{})["hugepages-"+hugepagesValue] = hugepagesValue
+		// Also set limits for hugepages (required by Kubernetes)
+		vm.Object["spec"].(map[string]interface{})["template"].(map[string]interface{})["spec"].(map[string]interface{})["domain"].(map[string]interface{})["resources"].(map[string]interface{})["limits"] = map[string]interface{}{
+			"hugepages-"+hugepagesValue: hugepagesValue,
+		}
 	}
 
 	// Add sidecar hook if specified
