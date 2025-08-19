@@ -315,16 +315,30 @@ func (r *KubeVirtVMResource) Create(ctx context.Context, req resource.CreateRequ
 		}
 	}
 
+	// Add memory configuration
 	if !data.Hugepages.IsNull() && !data.Hugepages.IsUnknown() {
-		vm.Object["spec"].(map[string]interface{})["template"].(map[string]interface{})["spec"].(map[string]interface{})["domain"].(map[string]interface{})["memory"] = map[string]interface{}{
-			"hugepages": map[string]interface{}{
-				"pageSize": data.Hugepages.ValueString(),
+		vm.Object["spec"].(map[string]interface{})["template"].(map[string]interface{})["spec"].(map[string]interface{})["domain"].(map[string]interface{})["resources"] = map[string]interface{}{
+			"limits": map[string]interface{}{
+				"cpu":            data.CPU.ValueInt64(),
+				"hugepages-1Gi": data.Hugepages.ValueString(),
+				"memory":         data.Memory.ValueString(),
+			},
+			"requests": map[string]interface{}{
+				"cpu":            data.CPU.ValueInt64(),
+				"hugepages-1Gi": data.Hugepages.ValueString(),
+				"memory":         data.Memory.ValueString(),
 			},
 		}
 	} else {
-		// Set default memory configuration
-		vm.Object["spec"].(map[string]interface{})["template"].(map[string]interface{})["spec"].(map[string]interface{})["domain"].(map[string]interface{})["memory"] = map[string]interface{}{
-			"guest": data.Memory.ValueString(),
+		vm.Object["spec"].(map[string]interface{})["template"].(map[string]interface{})["spec"].(map[string]interface{})["domain"].(map[string]interface{})["resources"] = map[string]interface{}{
+			"limits": map[string]interface{}{
+				"cpu":    data.CPU.ValueInt64(),
+				"memory": data.Memory.ValueString(),
+			},
+			"requests": map[string]interface{}{
+				"cpu":    data.CPU.ValueInt64(),
+				"memory": data.Memory.ValueString(),
+			},
 		}
 	}
 
@@ -366,14 +380,17 @@ func (r *KubeVirtVMResource) Create(ctx context.Context, req resource.CreateRequ
 					tolObj["value"] = kvParts[1]
 				} else {
 					tolObj["key"] = keyValue
+					// Use operator: Exists for key-only tolerations (like the working VM)
+					tolObj["operator"] = "Exists"
 				}
 				
 				tolObjects[i] = tolObj
 			} else {
-				// Fallback: treat as key only
+				// Fallback: treat as key only with Exists operator
 				tolObjects[i] = map[string]interface{}{
-					"key":    tol,
-					"effect": "NoSchedule",
+					"key":      tol,
+					"operator": "Exists",
+					"effect":   "NoSchedule",
 				}
 			}
 		}
