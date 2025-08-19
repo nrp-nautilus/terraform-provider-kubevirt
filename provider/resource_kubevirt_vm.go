@@ -163,8 +163,8 @@ func (r *KubeVirtVMResource) Schema(ctx context.Context, req resource.SchemaRequ
 				Computed:    true,
 			},
 			"workspace_transition": schema.StringAttribute{
-				Description: "Workspace transition state (start, stop, delete)",
-				Computed:    true,
+				Description: "Workspace transition state for lifecycle management (start, stop, delete)",
+				Optional:    true,
 			},
 		},
 	}
