@@ -1,8 +1,19 @@
-# Build artifacts
+# Build artifacts and binaries
 terraform-provider-*
+kubevirt-terraform-provider
 bin/
 dist/
 build/
+*.exe
+*.dll
+*.so
+*.dylib
+*.app
+
+# Go build artifacts
+*.o
+*.a
+*.test
 
 # Terraform local state and cache
 **/.terraform/
@@ -12,7 +23,18 @@ build/
 
 # Archives
 *.zip
+*.tar.gz
+*.tar
 
 # macOS
 .DS_Store
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS files
+Thumbs.db
 
