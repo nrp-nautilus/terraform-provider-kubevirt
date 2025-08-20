@@ -81,12 +81,10 @@ sync-github:
     - git config --global user.name "GitLab CI"
     - git config --global user.email "ci@gitlab.nrp-nautilus.io"
   script:
-    # Ensure we're working with clean source code only
     - echo "🧹 Ensuring clean source code sync..."
     - git status
     - git remote add github https://x-access-token:${GITHUB_TOKEN}@github.com/nrp-nautilus/terraform-provider-kubevirt.git
     - git fetch origin
-    # Only push source code, no binaries
     - git push github main --force
     - git push github --tags --force
     - echo "✅ Successfully synced SOURCE CODE ONLY to GitHub"
