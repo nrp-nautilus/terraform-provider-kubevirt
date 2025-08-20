@@ -43,30 +43,31 @@ fetch-github-results:
     # Wait for GitHub Actions to complete (with timeout)
     - TIMEOUT=300
     - ELAPSED=0
+    - echo "Starting wait loop..."
+    
+    # Simple wait loop
     - |
       while [ $ELAPSED -lt $TIMEOUT ]; do
         echo "⏳ Waiting for GitHub Actions to complete... (${ELAPSED}s elapsed)"
-        
-        # Check if GitHub release exists
         RELEASE_URL="https://api.github.com/repos/nrp-nautilus/terraform-provider-kubevirt/releases/tags/${CI_COMMIT_TAG}"
         RESPONSE=$(curl -s -H "Authorization: token ${GITHUB_TOKEN}" "$RELEASE_URL")
-        
         if echo "$RESPONSE" | jq -e '.id' > /dev/null 2>&1; then
           echo "✅ GitHub release found!"
           echo "$RESPONSE" | jq '.name, .tag_name, .html_url'
           break
         fi
-        
         sleep 30
         ELAPSED=$((ELAPSED + 30))
       done
-      
+    
+    # Check timeout
+    - |
       if [ $ELAPSED -ge $TIMEOUT ]; then
         echo "❌ Timeout waiting for GitHub Actions to complete"
         exit 1
       fi
     
-    # Download the built binaries from GitHub release
+    # Download binaries
     - echo "📥 Downloading binaries from GitHub release..."
     - ASSETS_URL="https://api.github.com/repos/nrp-nautilus/terraform-provider-kubevirt/releases/tags/${CI_COMMIT_TAG}/assets"
     - ASSETS=$(curl -s -H "Authorization: token ${GITHUB_TOKEN}" "$ASSETS_URL")
@@ -90,12 +91,10 @@ fetch-github-results:
         echo "❌ Linux binary not found in GitHub release"
         exit 1
       fi
-      
       if [ ! -f "bin/terraform-provider-${PROVIDER_NAME}_${CI_COMMIT_SHA}_darwin" ]; then
         echo "❌ Darwin binary not found in GitHub release"
         exit 1
       fi
-      
       echo "✅ All binaries downloaded successfully from GitHub!"
   artifacts:
     paths:
