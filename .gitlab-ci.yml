@@ -3,6 +3,7 @@ stages:
   - go-test
   - fetch-github-results
   - sync-github
+  - release
 
 test:
   stage: test
@@ -70,6 +71,18 @@ sync-github:
     - echo "Pushing to GitHub main branch"
     - git push origin gitlab/main:main --force
     - echo "Phase 4 GitHub sync completed successfully"
+  rules:
+    - if: $CI_COMMIT_TAG
+  dependencies: []
+
+release:
+  stage: release
+  image: registry.gitlab.com/gitlab-org/release-cli:latest
+  script:
+    - echo "Phase 5 Creating GitLab release"
+    - echo "Release version ${CI_COMMIT_TAG}"
+    - release-cli create --name "Release ${CI_COMMIT_TAG}" --tag-name ${CI_COMMIT_TAG}
+    - echo "Phase 5 GitLab release completed successfully"
   rules:
     - if: $CI_COMMIT_TAG
   dependencies: []
