@@ -90,7 +90,7 @@ sync-github:
     - echo "Git branch after commit"
     - git branch -a
     - echo "Creating main branch from current commit"
-    - git branch -M main
+    - git checkout -b main
     - echo "Git status after branch creation"
     - git status
     - echo "Git branch after branch creation"
