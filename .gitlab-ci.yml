@@ -70,19 +70,8 @@ sync-github:
     - echo "Pushing to GitHub main branch from GitLab working directory"
     - cd /builds/nrp/kubevirt-terraform-provider
     - git remote add github https://x-access-token:${GITHUB_TOKEN}@github.com/nrp-nautilus/terraform-provider-kubevirt.git
-    - echo "Creating new git repo with current files"
-    - mkdir fresh-push
-    - cd fresh-push
-    - git init
-    - git config user.email "ci@gitlab.nrp-nautilus.io"
-    - git config user.name "GitLab CI"
-    - echo "Copying source files avoiding recursion and github-repo"
-    - find /builds/nrp/kubevirt-terraform-provider -maxdepth 1 -not -name fresh-push -not -name .git -not -name github-repo -exec cp -r {} . \;
-    - git add .
-    - git commit -m "Sync from GitLab - $(date)"
-    - git branch -M main
-    - git remote add github https://x-access-token:${GITHUB_TOKEN}@github.com/nrp-nautilus/terraform-provider-kubevirt.git
-    - git push github main:main --force --verbose
+    - echo "Pushing current GitLab code to GitHub"
+    - git push github HEAD:main --force --verbose
     - echo "Git push exit code $?"
     - echo "Git remote v output"
     - git remote -v
@@ -97,23 +86,21 @@ sync-github:
     - LATEST_COMMIT=$(jq -r '.sha' github_response.json)
     - echo "Latest GitHub commit"
     - echo "$LATEST_COMMIT"
-    - echo "Getting original GitLab commit from tag"
-    - cd /builds/nrp/kubevirt-terraform-provider
-    - ORIGINAL_COMMIT=$(git rev-parse HEAD)
-    - echo "Original GitLab commit"
-    - echo "$ORIGINAL_COMMIT"
+    - echo "Current GitLab commit"
+    - CURRENT_COMMIT=$(git rev-parse HEAD)
+    - echo "$CURRENT_COMMIT"
     - echo "Comparing commit hashes"
     - echo "GitHub commit hash"
     - echo "$LATEST_COMMIT"
-    - echo "Original GitLab commit hash"
-    - echo "$ORIGINAL_COMMIT"
-    - echo "Checking if commits match"
-    - if [ "$LATEST_COMMIT" = "$ORIGINAL_COMMIT" ]
+    - echo "GitLab commit hash"
+    - echo "$CURRENT_COMMIT"
+    - echo "Checking if GitHub got our new code"
+    - if [ "$LATEST_COMMIT" != "$CURRENT_COMMIT" ]
     - then
-    -   echo "ERROR GitHub commit matches GitLab Pipeline should fail"
+    -   echo "ERROR GitHub did not get our new code Pipeline should fail"
     -   exit 1
     - fi
-    - echo "GitHub commit validation passed - different hashes detected"
+    - echo "GitHub commit validation passed - GitHub got our new code"
     - echo "Checking if GitHub Actions workflow started"
     - curl -s -H "$AUTH_HEADER" "https://api.github.com/repos/nrp-nautilus/terraform-provider-kubevirt/actions/runs?per_page=1" > workflow_response.json
     - WORKFLOW_RUNS=$(jq '.workflow_runs | length' workflow_response.json)
