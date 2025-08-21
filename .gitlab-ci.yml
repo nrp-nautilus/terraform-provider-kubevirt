@@ -69,7 +69,7 @@ sync-github:
     - echo "Fetching latest from GitLab"
     - git fetch gitlab
     - echo "Pushing to GitHub main branch"
-    - git push origin gitlab/main:main --force --verbose
+    - git push origin HEAD:main --force --verbose
     - echo "Git push exit code $?"
     - echo "Git remote v output"
     - git remote -v
