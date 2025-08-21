@@ -79,10 +79,20 @@ sync-github:
     - git config init.defaultBranch main
     - echo "Copying current source files avoiding recursion"
     - find /builds/nrp/kubevirt-terraform-provider -maxdepth 1 -not -name clean-push -not -name .git -not -name github-repo -not -name kubevirt-terraform-provider -exec cp -r {} . \;
-    - echo "Cleaning up any git artifacts"
-    - rm -rf .git github-repo kubevirt-terraform-provider 2>/dev/null || true
+    - echo "Cleaning up any git artifacts and problematic files"
+    - rm -rf .git github-repo kubevirt-terraform-provider clean-push 2>/dev/null || true
+    - rm -rf .terraform .terraform.lock.hcl 2>/dev/null || true
+    - rm -rf bin/ dist/ build/ 2>/dev/null || true
+    - echo "Removing any hidden files that might cause issues"
+    - find . -name ".*" -type f -not -name ".gitignore" -not -name ".github" -not -name ".gitlab-ci.yml" -delete 2>/dev/null || true
+    - echo "Final cleanup - removing any remaining problematic directories"
+    - rm -rf node_modules/ vendor/ .cache/ .tmp/ 2>/dev/null || true
     - echo "Adding files to git"
     - git add .
+    - echo "Files staged for commit:"
+    - git status --porcelain
+    - echo "Total files to be committed:"
+    - git diff --cached --name-only | wc -l
     - echo "Committing clean repository"
     - git commit -m "Sync from GitLab - $(date)"
     - echo "Git status after commit"
