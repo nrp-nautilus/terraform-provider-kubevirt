@@ -1,4 +1,4 @@
-name: Build Terraform Provider
+name: Continuous Build Terraform Provider
 
 on:
   push:
@@ -72,11 +72,3 @@ jobs:
           name: provider-binaries
           path: bin/
           retention-days: 7
-
-      - name: Create GitHub Release
-        uses: softprops/action-gh-release@v1
-        with:
-          files: bin/*
-          generate_release_notes: true
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
