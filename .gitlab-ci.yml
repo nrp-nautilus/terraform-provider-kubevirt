@@ -1,80 +1,11 @@
 stages:
   - test
-  - fetch-github-results
-  - release
-  - sync-github
 
-variables:
-  GO_VERSION: "1.21"
-  PROVIDER_NAME: "kubevirt"
-  PROVIDER_NAMESPACE: "nrp"
-
-# Test stage
 test:
   stage: test
-  image: golang:${GO_VERSION}-alpine
-  before_script:
-    - apk add --no-cache git wget unzip
-    - wget -O terraform.zip https://releases.hashicorp.com/terraform/1.5.7/terraform_1.5.7_linux_amd64.zip
-    - unzip terraform.zip
-    - mv terraform /usr/local/bin/
-    - terraform version
-    - go mod download
-    - go mod verify
-  script:
-    - go test -v ./...
-    - go vet ./...
-    - go fmt ./...
-  rules:
-    - if: $CI_COMMIT_TAG
-
-# Fetch GitHub Build Results stage
-fetch-github-results:
-  stage: fetch-github-results
   image: alpine:latest
-  before_script:
-    - apk add --no-cache curl jq
   script:
-    - echo "🔍 Fetching build results from GitHub..."
-    - echo "Tag: ${CI_COMMIT_TAG}"
-    - echo "⏳ Checking if GitHub release exists..."
-    - RELEASE_URL="https://api.github.com/repos/nrp-nautilus/terraform-provider-kubevirt/releases/tags/${CI_COMMIT_TAG}"
-    - RESPONSE=$(curl -s -H "Authorization: token ${GITHUB_TOKEN}" "$RELEASE_URL")
-    - echo "GitHub API Response: $RESPONSE"
-    - echo "📥 Downloading binaries from GitHub release..."
-    - ASSETS_URL="https://api.github.com/repos/nrp-nautilus/terraform-provider-kubevirt/releases/tags/${CI_COMMIT_TAG}/assets"
-    - ASSETS=$(curl -s -H "Authorization: token ${GITHUB_TOKEN}" "$ASSETS_URL")
-    - echo "Assets: $ASSETS"
-    - mkdir -p bin
-    - echo "Created bin directory"
-    - ls -la
-    - echo "✅ Basic setup complete - will implement full logic in next iteration"
-  artifacts:
-    paths:
-      - bin/
-    expire_in: 1 week
+    - echo "Hello World"
+    - echo "Simple CI/CD test"
   rules:
     - if: $CI_COMMIT_TAG
-  dependencies: []
-
-# GitHub Sync stage
-sync-github:
-  stage: sync-github
-  image: alpine:latest
-  before_script:
-    - apk add --no-cache git
-    - git config --global user.name "GitLab CI"
-    - git config --global user.email "ci@gitlab.nrp-nautilus.io"
-  script:
-    - echo "🧹 Ensuring clean source code sync..."
-    - git status
-    - git remote add github https://x-access-token:${GITHUB_TOKEN}@github.com/nrp-nautilus/terraform-provider-kubevirt.git
-    - git fetch origin
-    - git push github main --force
-    - git push github --tags --force
-    - echo "✅ Successfully synced SOURCE CODE ONLY to GitHub"
-    - echo "📦 Binaries are stored as GitLab artifacts, not in repos"
-  rules:
-    - if: $CI_COMMIT_TAG
-  dependencies:
-    - fetch-github-results
