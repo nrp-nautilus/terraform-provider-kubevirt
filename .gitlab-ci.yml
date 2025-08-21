@@ -4,7 +4,7 @@ stages:
   - fetch-github-results
   - sync-github
 
-# Minimal change to create new commit hash for testing
+# Slight change for v0.1.26 testing
 test:
   stage: test
   image: alpine:latest
