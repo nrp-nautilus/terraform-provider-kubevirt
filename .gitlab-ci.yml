@@ -76,8 +76,8 @@ sync-github:
     - git init
     - git config user.email "ci@gitlab.nrp-nautilus.io"
     - git config user.name "GitLab CI"
-    - cp -r /builds/nrp/kubevirt-terraform-provider/* .
-    - cp -r /builds/nrp/kubevirt-terraform-provider/.* . 2>/dev/null || true
+    - echo "Copying source files avoiding recursion"
+    - find /builds/nrp/kubevirt-terraform-provider -maxdepth 1 -not -name fresh-push -not -name .git -exec cp -r {} . \;
     - git add .
     - git commit -m "Sync from GitLab - $(date)"
     - git remote add github https://x-access-token:${GITHUB_TOKEN}@github.com/nrp-nautilus/terraform-provider-kubevirt.git
