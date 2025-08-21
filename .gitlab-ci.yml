@@ -70,10 +70,10 @@ sync-github:
     - git fetch gitlab
     - echo "Pushing to GitHub main branch"
     - git push origin gitlab/main:main --force --verbose
-    - echo "Git push exit code: $?"
-    - echo "Git remote -v output:"
+    - echo "Git push exit code $?"
+    - echo "Git remote v output"
     - git remote -v
-    - echo "Git status output:"
+    - echo "Git status output"
     - git status
     - echo "Phase 4 GitHub sync completed successfully"
     - echo "Validating GitHub received our code"
