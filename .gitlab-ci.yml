@@ -3,7 +3,6 @@ stages:
   - go-test
   - fetch-github-results
   - sync-github
-  - release
 
 test:
   stage: test
@@ -55,7 +54,7 @@ sync-github:
   stage: sync-github
   image: alpine:latest
   before_script:
-    - apk add --no-cache git
+    - apk add --no-cache git curl jq
   script:
     - echo "Phase 4 Real GitHub sync starting HTTPS with token"
     - echo "Setting up git with GitHub token"
@@ -71,18 +70,19 @@ sync-github:
     - echo "Pushing to GitHub main branch"
     - git push origin gitlab/main:main --force
     - echo "Phase 4 GitHub sync completed successfully"
-  rules:
-    - if: $CI_COMMIT_TAG
-  dependencies: []
-
-release:
-  stage: release
-  image: registry.gitlab.com/gitlab-org/release-cli:latest
-  script:
-    - echo "Phase 5 Creating GitLab release"
-    - echo "Release version ${CI_COMMIT_TAG}"
-    - release-cli create --name "Release ${CI_COMMIT_TAG}" --tag-name ${CI_COMMIT_TAG}
-    - echo "Phase 5 GitLab release completed successfully"
+    - echo "Validating GitHub received our code"
+    - sleep 10
+    - echo "Checking GitHub API for latest commit"
+    - LATEST_COMMIT=$(curl -s -H "Authorization: token ${GITHUB_TOKEN}" "https://api.github.com/repos/nrp-nautilus/terraform-provider-kubevirt/commits/main" | jq -r '.sha')
+    - echo "Latest GitHub commit: ${LATEST_COMMIT}"
+    - GITLAB_COMMIT=$(git rev-parse HEAD)
+    - echo "GitLab commit: ${GITLAB_COMMIT}"
+    - if [ "${LATEST_COMMIT:0:7}" != "${GITLAB_COMMIT:0:7}" ]; then echo "ERROR: GitHub commit mismatch! Pipeline should fail!"; exit 1; fi
+    - echo "GitHub commit validation passed"
+    - echo "Checking if GitHub Actions workflow started"
+    - WORKFLOW_RUNS=$(curl -s -H "Authorization: token ${GITHUB_TOKEN}" "https://api.github.com/repos/nrp-nautilus/terraform-provider-kubevirt/actions/runs?per_page=1" | jq '.workflow_runs | length')
+    - if [ "$WORKFLOW_RUNS" -eq 0 ]; then echo "ERROR: No GitHub Actions runs found! Pipeline should fail!"; exit 1; fi
+    - echo "GitHub Actions workflow found - validation passed"
   rules:
     - if: $CI_COMMIT_TAG
   dependencies: []
