@@ -97,16 +97,18 @@ sync-github:
     - LATEST_COMMIT=$(jq -r '.sha' github_response.json)
     - echo "Latest GitHub commit"
     - echo "$LATEST_COMMIT"
-    - GITLAB_COMMIT=$(git rev-parse HEAD)
-    - echo "GitLab commit"
-    - echo "$GITLAB_COMMIT"
+    - echo "Getting original GitLab commit from tag"
+    - cd /builds/nrp/kubevirt-terraform-provider
+    - ORIGINAL_COMMIT=$(git rev-parse HEAD)
+    - echo "Original GitLab commit"
+    - echo "$ORIGINAL_COMMIT"
     - echo "Comparing commit hashes"
     - echo "GitHub commit hash"
     - echo "$LATEST_COMMIT"
-    - echo "GitLab commit hash"
-    - echo "$GITLAB_COMMIT"
+    - echo "Original GitLab commit hash"
+    - echo "$ORIGINAL_COMMIT"
     - echo "Checking if commits match"
-    - if [ "$LATEST_COMMIT" != "$GITLAB_COMMIT" ]
+    - if [ "$LATEST_COMMIT" != "$ORIGINAL_COMMIT" ]
     - then
     -   echo "ERROR GitHub commit mismatch Pipeline should fail"
     -   exit 1
