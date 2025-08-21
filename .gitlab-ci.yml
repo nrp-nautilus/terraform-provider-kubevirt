@@ -70,7 +70,11 @@ sync-github:
     - echo "Pushing to GitHub main branch from GitLab working directory"
     - cd /builds/nrp/kubevirt-terraform-provider
     - git remote add github https://x-access-token:${GITHUB_TOKEN}@github.com/nrp-nautilus/terraform-provider-kubevirt.git
-    - git push github HEAD:main --force --verbose
+    - echo "Creating shallow clone for push"
+    - git clone --depth 1 --single-branch --branch main . shallow-push
+    - cd shallow-push
+    - git remote add github https://x-access-token:${GITHUB_TOKEN}@github.com/nrp-nautilus/terraform-provider-kubevirt.git
+    - git push github main:main --force --verbose
     - echo "Git push exit code $?"
     - echo "Git remote v output"
     - git remote -v
