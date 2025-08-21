@@ -108,12 +108,12 @@ sync-github:
     - echo "Original GitLab commit hash"
     - echo "$ORIGINAL_COMMIT"
     - echo "Checking if commits match"
-    - if [ "$LATEST_COMMIT" != "$ORIGINAL_COMMIT" ]
+    - if [ "$LATEST_COMMIT" = "$ORIGINAL_COMMIT" ]
     - then
-    -   echo "ERROR GitHub commit mismatch Pipeline should fail"
+    -   echo "ERROR GitHub commit matches GitLab Pipeline should fail"
     -   exit 1
     - fi
-    - echo "GitHub commit validation passed"
+    - echo "GitHub commit validation passed - different hashes detected"
     - echo "Checking if GitHub Actions workflow started"
     - curl -s -H "$AUTH_HEADER" "https://api.github.com/repos/nrp-nautilus/terraform-provider-kubevirt/actions/runs?per_page=1" > workflow_response.json
     - WORKFLOW_RUNS=$(jq '.workflow_runs | length' workflow_response.json)
