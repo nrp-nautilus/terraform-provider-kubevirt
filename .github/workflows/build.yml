@@ -11,6 +11,11 @@ env:
   GO_VERSION: '1.21'
   PROVIDER_NAME: 'kubevirt'
 
+# Add explicit permissions for creating releases
+permissions:
+  contents: write
+  packages: write
+
 jobs:
   test:
     name: Test
