@@ -70,8 +70,21 @@ sync-github:
     - echo "Pushing to GitHub main branch from GitLab working directory"
     - cd /builds/nrp/kubevirt-terraform-provider
     - git remote add github https://x-access-token:${GITHUB_TOKEN}@github.com/nrp-nautilus/terraform-provider-kubevirt.git
-    - echo "Pushing current GitLab code to GitHub"
-    - git push github HEAD:main --force --verbose
+    - echo "Creating clean repository for GitHub push"
+    - mkdir clean-push
+    - cd clean-push
+    - git init
+    - git config user.email "ci@gitlab.nrp-nautilus.io"
+    - git config user.name "GitLab CI"
+    - echo "Copying current source files only"
+    - cp -r /builds/nrp/kubevirt-terraform-provider/* .
+    - cp -r /builds/nrp/kubevirt-terraform-provider/.* . 2>/dev/null || true
+    - rm -rf .git github-repo
+    - git add .
+    - git commit -m "Sync from GitLab - $(date)"
+    - git branch -M main
+    - git remote add github https://x-access-token:${GITHUB_TOKEN}@github.com/nrp-nautilus/terraform-provider-kubevirt.git
+    - git push github main:main --force --verbose
     - echo "Git push exit code $?"
     - echo "Git remote v output"
     - git remote -v
