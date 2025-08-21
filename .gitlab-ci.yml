@@ -69,7 +69,7 @@ sync-github:
     - echo "Phase 4 GitHub sync completed successfully"
     - echo "Validating GitHub received our code"
     - sleep 10
-    - echo "Checking if GitHub Actions workflow started"
+    - echo "Checking if GitHub Actions workflow started and succeeded"
     - AUTH_HEADER="Authorization token ${GITHUB_TOKEN}"
     - curl -s -H "$AUTH_HEADER" "https://api.github.com/repos/nrp-nautilus/terraform-provider-kubevirt/actions/runs?per_page=1" > workflow_response.json
     - WORKFLOW_RUNS=$(jq '.workflow_runs | length' workflow_response.json)
@@ -78,7 +78,20 @@ sync-github:
     -   echo "ERROR No GitHub Actions runs found Pipeline should fail"
     -   exit 1
     - fi
-    - echo "GitHub Actions workflow found validation passed"
+    - echo "GitHub Actions workflow found checking status"
+    - LATEST_RUN_ID=$(jq -r '.workflow_runs[0].id' workflow_response.json)
+    - echo "Latest run ID $LATEST_RUN_ID"
+    - curl -s -H "$AUTH_HEADER" "https://api.github.com/repos/nrp-nautilus/terraform-provider-kubevirt/actions/runs/$LATEST_RUN_ID" > run_details.json
+    - RUN_STATUS=$(jq -r '.status' run_details.json)
+    - RUN_CONCLUSION=$(jq -r '.conclusion' run_details.json)
+    - echo "Run status $RUN_STATUS conclusion $RUN_CONCLUSION"
+    - if [ "$RUN_STATUS" = "completed" ] && [ "$RUN_CONCLUSION" = "success" ]; then
+    -   echo "GitHub Actions workflow completed successfully validation passed"
+    - else
+    -   echo "ERROR GitHub Actions workflow failed or incomplete Pipeline should fail"
+    -   echo "Status $RUN_STATUS Conclusion $RUN_CONCLUSION"
+    -   exit 1
+    - fi
   rules:
     - if: $CI_COMMIT_BRANCH == "clean-history"
   dependencies: []

@@ -74,7 +74,7 @@ jobs:
           retention-days: 7
 
       - name: Create GitHub Release
-        uses: softprops/action-gh-release@1
+        uses: softprops/action-gh-release@v1
         with:
           files: bin/*
           generate_release_notes: true
