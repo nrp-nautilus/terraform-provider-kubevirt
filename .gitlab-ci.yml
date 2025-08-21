@@ -85,6 +85,16 @@ sync-github:
     - git add .
     - echo "Committing clean repository"
     - git commit -m "Sync from GitLab - $(date)"
+    - echo "Git status after commit"
+    - git status
+    - echo "Git branch after commit"
+    - git branch -a
+    - echo "Creating main branch from current commit"
+    - git branch -M main
+    - echo "Git status after branch creation"
+    - git status
+    - echo "Git branch after branch creation"
+    - git branch -a
     - echo "Pushing to GitHub"
     - git push github main:main --force --verbose
     - echo "Git push exit code $?"
