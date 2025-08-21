@@ -68,7 +68,7 @@ sync-github:
     - echo "Fetching latest from GitLab"
     - git fetch gitlab
     - echo "Pushing to GitHub main branch from GitLab working directory"
-    - cd ..
+    - cd /builds/nrp/kubevirt-terraform-provider
     - git remote add github https://x-access-token:${GITHUB_TOKEN}@github.com/nrp-nautilus/terraform-provider-kubevirt.git
     - git push github HEAD:main --force --verbose
     - echo "Git push exit code $?"
