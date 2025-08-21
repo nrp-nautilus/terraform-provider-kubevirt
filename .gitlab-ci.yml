@@ -76,14 +76,16 @@ sync-github:
     - git init
     - git config user.email "ci@gitlab.nrp-nautilus.io"
     - git config user.name "GitLab CI"
-    - echo "Copying current source files only"
-    - cp -r /builds/nrp/kubevirt-terraform-provider/* .
-    - cp -r /builds/nrp/kubevirt-terraform-provider/.* . 2>/dev/null || true
-    - rm -rf .git github-repo
+    - git config init.defaultBranch main
+    - echo "Copying current source files avoiding recursion"
+    - find /builds/nrp/kubevirt-terraform-provider -maxdepth 1 -not -name clean-push -not -name .git -not -name github-repo -not -name kubevirt-terraform-provider -exec cp -r {} . \;
+    - echo "Cleaning up any git artifacts"
+    - rm -rf .git github-repo kubevirt-terraform-provider 2>/dev/null || true
+    - echo "Adding files to git"
     - git add .
+    - echo "Committing clean repository"
     - git commit -m "Sync from GitLab - $(date)"
-    - git branch -M main
-    - git remote add github https://x-access-token:${GITHUB_TOKEN}@github.com/nrp-nautilus/terraform-provider-kubevirt.git
+    - echo "Pushing to GitHub"
     - git push github main:main --force --verbose
     - echo "Git push exit code $?"
     - echo "Git remote v output"
@@ -95,11 +97,24 @@ sync-github:
     - sleep 10
     - echo "Checking GitHub API for latest commit"
     - AUTH_HEADER="Authorization token ${GITHUB_TOKEN}"
+    - echo "Making GitHub API request"
     - curl -s -H "$AUTH_HEADER" "https://api.github.com/repos/nrp-nautilus/terraform-provider-kubevirt/commits/main" > github_response.json
+    - echo "Checking if GitHub API response is valid"
+    - if [ ! -s github_response.json ]; then
+    -   echo "ERROR GitHub API returned empty response"
+    -   exit 1
+    - fi
+    - echo "Parsing GitHub commit hash"
     - LATEST_COMMIT=$(jq -r '.sha' github_response.json)
     - echo "Latest GitHub commit"
     - echo "$LATEST_COMMIT"
+    - echo "Checking if commit hash is valid"
+    - if [ "$LATEST_COMMIT" = "null" ] || [ -z "$LATEST_COMMIT" ]; then
+    -   echo "ERROR Invalid GitHub commit hash received"
+    -   exit 1
+    - fi
     - echo "Current GitLab commit"
+    - cd /builds/nrp/kubevirt-terraform-provider
     - CURRENT_COMMIT=$(git rev-parse HEAD)
     - echo "$CURRENT_COMMIT"
     - echo "Comparing commit hashes"
