@@ -4,7 +4,6 @@ stages:
   - fetch-github-results
   - sync-github
 
-# Slight change for v0.1.26 testing
 test:
   stage: test
   image: alpine:latest
@@ -12,7 +11,7 @@ test:
     - echo "Hello World"
     - echo "Simple CI/CD test"
   rules:
-    - if: $CI_COMMIT_TAG
+    - if: $CI_COMMIT_BRANCH == "main"
 
 go-test:
   stage: go-test
@@ -34,7 +33,7 @@ go-test:
     - go fmt ./...
     - echo "✅ Go tests completed successfully!"
   rules:
-    - if: $CI_COMMIT_TAG
+    - if: $CI_COMMIT_BRANCH == "main"
 
 fetch-github-results:
   stage: fetch-github-results
@@ -43,12 +42,12 @@ fetch-github-results:
     - apk add --no-cache curl jq
   script:
     - echo "Phase 3 Basic GitHub API check"
-    - echo "Tag check stage"
+    - echo "Main branch check stage"
     - echo "Checking GitHub API"
     - echo "Basic test will add GitHub logic later"
     - echo "Phase 3 completed successfully"
   rules:
-    - if: $CI_COMMIT_TAG
+    - if: $CI_COMMIT_BRANCH == "main"
   dependencies: []
 
 sync-github:
@@ -61,12 +60,6 @@ sync-github:
     - echo "Setting up git with GitHub token"
     - git config --global user.email "ci@gitlab.nrp-nautilus.io"
     - git config --global user.name "GitLab CI"
-    - echo "Cloning GitHub repository HTTPS"
-    - git clone https://x-access-token:${GITHUB_TOKEN}@github.com/nrp-nautilus/terraform-provider-kubevirt.git github-repo
-    - echo "Adding GitLab as remote HTTPS"
-    - git remote add gitlab https://gitlab.nrp-nautilus.io/nrp/kubevirt-terraform-provider.git
-    - echo "Fetching latest from GitLab"
-    - git fetch gitlab
     - echo "Pushing to GitHub main branch from GitLab working directory"
     - cd /builds/nrp/kubevirt-terraform-provider
     - git remote add github https://x-access-token:${GITHUB_TOKEN}@github.com/nrp-nautilus/terraform-provider-kubevirt.git
@@ -87,5 +80,5 @@ sync-github:
     - fi
     - echo "GitHub Actions workflow found validation passed"
   rules:
-    - if: $CI_COMMIT_TAG
+    - if: $CI_COMMIT_BRANCH == "main"
   dependencies: []
