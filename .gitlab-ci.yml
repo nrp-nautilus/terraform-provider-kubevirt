@@ -80,7 +80,7 @@ sync-github:
     - AUTH_HEADER="Authorization token ${GITHUB_TOKEN}"
     - curl -s -H "$AUTH_HEADER" "https://api.github.com/repos/nrp-nautilus/terraform-provider-kubevirt/actions/runs?per_page=1" > workflow_response.json
     - WORKFLOW_RUNS=$(jq '.workflow_runs | length' workflow_response.json)
-    - echo "Workflow runs found: $WORKFLOW_RUNS"
+    - echo "Workflow runs found $WORKFLOW_RUNS"
     - if [ "$WORKFLOW_RUNS" -eq 0 ]; then
     -   echo "ERROR No GitHub Actions runs found Pipeline should fail"
     -   exit 1
