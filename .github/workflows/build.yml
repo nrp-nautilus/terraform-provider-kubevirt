@@ -82,11 +82,24 @@ jobs:
           echo "Current directory contents:"
           ls -la
 
+      - name: Setup GPG
+        run: |
+          echo "${{ secrets.GPG_PRIVATE_KEY }}" | gpg --import
+          echo "${{ secrets.GPG_PASSPHRASE }}" | gpg --batch --yes --passphrase-fd 0 --pinentry-mode loopback --sign-key 1939A822A74AF28E
+
+      - name: Sign SHA256SUMS
+        run: |
+          cd bin
+          echo "${{ secrets.GPG_PASSPHRASE }}" | gpg --batch --yes --passphrase-fd 0 --pinentry-mode loopback --detach-sign --armor SHA256SUMS
+          echo "Signed SHA256SUMS.asc content:"
+          cat SHA256SUMS.asc
+
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v1
         with:
           files: |
             bin/SHA256SUMS
+            bin/SHA256SUMS.asc
             bin/terraform-provider-kubevirt_*
           generate_release_notes: true
           tag_name: "v0.1.${{ github.run_number }}"
