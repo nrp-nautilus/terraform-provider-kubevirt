@@ -1,4 +1,4 @@
-# Force fresh workflow run - Thu Aug 22 00:25:00 EDT 2025 - Updated to match synlestidae provider pattern
+# Force fresh workflow run - Thu Aug 22 00:35:00 EDT 2025 - Fixed versioning and file uploads
 name: Continuous Build Terraform Provider
 
 on:
@@ -63,8 +63,9 @@ jobs:
       - name: Build provider
         run: |
           mkdir -p bin
-          # Build with version in filename like synlestidae provider
-          VERSION="v0.1.24"
+          # Build with dynamic version from github.run_number
+          VERSION="v0.1.${{ github.run_number }}"
+          echo "Building version: $VERSION"
           GOOS=linux GOARCH=amd64 go build -o bin/terraform-provider-${PROVIDER_NAME}_${VERSION#v}_linux_amd64 .
           GOOS=darwin GOARCH=amd64 go build -o bin/terraform-provider-${PROVIDER_NAME}_${VERSION#v}_darwin_amd64 .
           ls -la bin/
@@ -79,8 +80,9 @@ jobs:
       - name: Generate SHA256 checksums
         run: |
           cd bin
-          # Use version in filename like synlestidae provider
-          VERSION="v0.1.24"
+          # Use dynamic version from github.run_number
+          VERSION="v0.1.${{ github.run_number }}"
+          echo "Generating checksums for version: $VERSION"
           shasum -a 256 * > "terraform-provider-${PROVIDER_NAME}_${VERSION#v}_SHA256SUMS"
           echo "SHA256SUMS content:"
           cat "terraform-provider-${PROVIDER_NAME}_${VERSION#v}_SHA256SUMS"
@@ -99,7 +101,8 @@ jobs:
         run: |
           echo "Signing SHA256SUMS..."
           cd bin
-          VERSION="v0.1.24"
+          VERSION="v0.1.${{ github.run_number }}"
+          echo "Signing checksums for version: $VERSION"
           # Use .sig extension like synlestidae provider
           echo "${{ secrets.GPG_PASSPHRASE }}" | gpg --batch --yes --passphrase-fd 0 --pinentry-mode loopback --detach-sign "terraform-provider-${PROVIDER_NAME}_${VERSION#v}_SHA256SUMS"
           echo "Signed SHA256SUMS.sig content:"
@@ -110,11 +113,12 @@ jobs:
         uses: softprops/action-gh-release@v1
         with:
           files: |
-            bin/terraform-provider-kubevirt_0.1.24_SHA256SUMS
-            bin/terraform-provider-kubevirt_0.1.24_SHA256SUMS.sig
-            bin/terraform-provider-kubevirt_0.1.24_*
+            bin/terraform-provider-kubevirt_0.1.${{ github.run_number }}_SHA256SUMS
+            bin/terraform-provider-kubevirt_0.1.${{ github.run_number }}_SHA256SUMS.sig
+            bin/terraform-provider-kubevirt_0.1.${{ github.run_number }}_linux_amd64
+            bin/terraform-provider-kubevirt_0.1.${{ github.run_number }}_darwin_amd64
           generate_release_notes: true
-          tag_name: "v0.1.24"
-          name: "Release v0.1.24 - ${{ github.sha }}"
+          tag_name: "v0.1.${{ github.run_number }}"
+          name: "Release v0.1.${{ github.run_number }} - ${{ github.sha }}"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
