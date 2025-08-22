@@ -2,9 +2,9 @@ name: Continuous Build Terraform Provider
 
 on:
   push:
-    branches: [ clean-history ]
+    branches: [ main ]
   pull_request:
-    branches: [ clean-history ]
+    branches: [ main ]
 
 env:
   GO_VERSION: '1.21'
@@ -88,7 +88,6 @@ jobs:
           echo "GPG_PRIVATE_KEY length: ${#GPG_PRIVATE_KEY}"
           echo "GPG_PASSPHRASE length: ${#GPG_PASSPHRASE}"
           echo "${{ secrets.GPG_PRIVATE_KEY }}" | gpg --import
-          echo "${{ secrets.GPG_PASSPHRASE }}" | gpg --batch --yes --passphrase-fd 0 --pinentry-mode loopback --sign-key 1939A822A74AF28E
           echo "GPG setup completed"
 
       - name: Sign SHA256SUMS
