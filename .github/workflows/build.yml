@@ -72,3 +72,35 @@ jobs:
           name: provider-binaries
           path: bin/
           retention-days: 7
+
+      - name: Generate SHA256 checksums
+        run: |
+          cd bin
+          shasum -a 256 * > SHA256SUMS
+          echo "SHA256SUMS content:"
+          cat SHA256SUMS
+
+      - name: Setup GPG
+        run: |
+          echo "${{ secrets.GPG_PRIVATE_KEY }}" | gpg --import
+          echo "${{ secrets.GPG_PASSPHRASE }}" | gpg --batch --yes --passphrase-fd 0 --pinentry-mode loopback --sign-key 1939A822A74AF28E
+
+      - name: Sign SHA256SUMS
+        run: |
+          cd bin
+          echo "${{ secrets.GPG_PASSPHRASE }}" | gpg --batch --yes --passphrase-fd 0 --pinentry-mode loopback --detach-sign --armor SHA256SUMS
+          echo "Signed SHA256SUMS.asc content:"
+          cat SHA256SUMS.asc
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: |
+            bin/*
+            bin/SHA256SUMS
+            bin/SHA256SUMS.asc
+          generate_release_notes: true
+          tag_name: "v0.1.$(date +%s)"
+          name: "Release $(date -u +'%Y-%m-%d %H:%M:%S UTC')"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
