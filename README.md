@@ -145,3 +145,4 @@ Check that:
 - The `CI_JOB_TOKEN` has access to create releases
 - The Go version in the pipeline matches your local version
 # Trigger new workflow run
+# Force new workflow run - Thu Aug 21 23:54:14 EDT 2025
