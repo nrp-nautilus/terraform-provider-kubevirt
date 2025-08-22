@@ -2,9 +2,9 @@ name: Continuous Build Terraform Provider
 
 on:
   push:
-    branches: [ main ]
+    branches: [ clean-history ]
   pull_request:
-    branches: [ main ]
+    branches: [ clean-history ]
 
 env:
   GO_VERSION: '1.21'
