@@ -84,15 +84,21 @@ jobs:
 
       - name: Setup GPG
         run: |
+          echo "Setting up GPG..."
+          echo "GPG_PRIVATE_KEY length: ${#GPG_PRIVATE_KEY}"
+          echo "GPG_PASSPHRASE length: ${#GPG_PASSPHRASE}"
           echo "${{ secrets.GPG_PRIVATE_KEY }}" | gpg --import
           echo "${{ secrets.GPG_PASSPHRASE }}" | gpg --batch --yes --passphrase-fd 0 --pinentry-mode loopback --sign-key 1939A822A74AF28E
+          echo "GPG setup completed"
 
       - name: Sign SHA256SUMS
         run: |
+          echo "Signing SHA256SUMS..."
           cd bin
           echo "${{ secrets.GPG_PASSPHRASE }}" | gpg --batch --yes --passphrase-fd 0 --pinentry-mode loopback --detach-sign --armor SHA256SUMS
           echo "Signed SHA256SUMS.asc content:"
           cat SHA256SUMS.asc
+          echo "Signing completed"
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v1
