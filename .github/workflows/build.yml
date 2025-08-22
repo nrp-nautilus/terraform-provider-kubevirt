@@ -85,8 +85,8 @@ jobs:
       - name: Setup GPG
         run: |
           echo "Setting up GPG..."
-          echo "GPG_PRIVATE_KEY length: ${{ length(secrets.GPG_PRIVATE_KEY) }}"
-          echo "GPG_PASSPHRASE length: ${{ length(secrets.GPG_PASSPHRASE) }}"
+          echo "GPG_PRIVATE_KEY exists: ${{ secrets.GPG_PRIVATE_KEY != '' }}"
+          echo "GPG_PASSPHRASE exists: ${{ secrets.GPG_PASSPHRASE != '' }}"
           echo "${{ secrets.GPG_PRIVATE_KEY }}" | gpg --import
           echo "GPG setup completed"
 
