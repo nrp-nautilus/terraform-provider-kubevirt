@@ -87,7 +87,7 @@ jobs:
           echo "Setting up GPG..."
           echo "GPG_PRIVATE_KEY exists: ${{ secrets.GPG_PRIVATE_KEY != '' }}"
           echo "GPG_PASSPHRASE exists: ${{ secrets.GPG_PASSPHRASE != '' }}"
-          echo "${{ secrets.GPG_PRIVATE_KEY }}" | gpg --import
+          echo "${{ secrets.GPG_PRIVATE_KEY }}" | gpg --batch --yes --import
           echo "GPG setup completed"
 
       - name: Sign SHA256SUMS
