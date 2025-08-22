@@ -79,13 +79,15 @@ jobs:
           shasum -a 256 * > SHA256SUMS
           echo "SHA256SUMS content:"
           cat SHA256SUMS
+          echo "Current directory contents:"
+          ls -la
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v1
         with:
           files: |
-            bin/*
             bin/SHA256SUMS
+            bin/terraform-provider-kubevirt_*
           generate_release_notes: true
           tag_name: "v0.1.${{ github.run_number }}"
           name: "Release v0.1.${{ github.run_number }} - ${{ github.sha }}"
