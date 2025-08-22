@@ -1,4 +1,4 @@
-# Force fresh workflow run - Thu Aug 22 00:35:00 EDT 2025 - Fixed versioning and file uploads
+# Force fresh workflow run - Thu Aug 22 00:45:00 EDT 2025 - Fixed platform binaries with .zip extension
 name: Continuous Build Terraform Provider
 
 on:
@@ -66,9 +66,24 @@ jobs:
           # Build with dynamic version from github.run_number
           VERSION="v0.1.${{ github.run_number }}"
           echo "Building version: $VERSION"
-          GOOS=linux GOARCH=amd64 go build -o bin/terraform-provider-${PROVIDER_NAME}_${VERSION#v}_linux_amd64 .
-          GOOS=darwin GOARCH=amd64 go build -o bin/terraform-provider-${PROVIDER_NAME}_${VERSION#v}_darwin_amd64 .
-          ls -la bin/
+          
+          # Build Linux binary
+          GOOS=linux GOARCH=amd64 go build -o bin/terraform-provider-${PROVIDER_NAME} .
+          
+          # Build Darwin binary  
+          GOOS=darwin GOARCH=amd64 go build -o bin/terraform-provider-${PROVIDER_NAME} .
+          
+          # Create zip files with proper naming convention for Terraform Cloud
+          cd bin
+          zip "terraform-provider-${PROVIDER_NAME}_${VERSION#v}_linux_amd64.zip" terraform-provider-${PROVIDER_NAME}
+          mv terraform-provider-${PROVIDER_NAME} terraform-provider-${PROVIDER_NAME}_darwin
+          zip "terraform-provider-${PROVIDER_NAME}_${VERSION#v}_darwin_amd64.zip" terraform-provider-${PROVIDER_NAME}_darwin
+          
+          # Clean up raw binaries
+          rm terraform-provider-${PROVIDER_NAME}_darwin
+          
+          echo "Created files:"
+          ls -la *.zip
 
       - name: Upload build artifacts
         uses: actions/upload-artifact@v4
@@ -83,7 +98,7 @@ jobs:
           # Use dynamic version from github.run_number
           VERSION="v0.1.${{ github.run_number }}"
           echo "Generating checksums for version: $VERSION"
-          shasum -a 256 * > "terraform-provider-${PROVIDER_NAME}_${VERSION#v}_SHA256SUMS"
+          shasum -a 256 *.zip > "terraform-provider-${PROVIDER_NAME}_${VERSION#v}_SHA256SUMS"
           echo "SHA256SUMS content:"
           cat "terraform-provider-${PROVIDER_NAME}_${VERSION#v}_SHA256SUMS"
           echo "Current directory contents:"
@@ -115,8 +130,8 @@ jobs:
           files: |
             bin/terraform-provider-kubevirt_0.1.${{ github.run_number }}_SHA256SUMS
             bin/terraform-provider-kubevirt_0.1.${{ github.run_number }}_SHA256SUMS.sig
-            bin/terraform-provider-kubevirt_0.1.${{ github.run_number }}_linux_amd64
-            bin/terraform-provider-kubevirt_0.1.${{ github.run_number }}_darwin_amd64
+            bin/terraform-provider-kubevirt_0.1.${{ github.run_number }}_linux_amd64.zip
+            bin/terraform-provider-kubevirt_0.1.${{ github.run_number }}_darwin_amd64.zip
           generate_release_notes: true
           tag_name: "v0.1.${{ github.run_number }}"
           name: "Release v0.1.${{ github.run_number }} - ${{ github.sha }}"
