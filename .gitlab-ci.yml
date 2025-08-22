@@ -11,7 +11,7 @@ test:
     - echo "Hello World"
     - echo "Simple CI/CD test"
   rules:
-    - if: $CI_COMMIT_BRANCH == "clean-history"
+    - if: $CI_COMMIT_BRANCH == "main"
 
 go-test:
   stage: go-test
@@ -33,7 +33,7 @@ go-test:
     - go fmt ./...
     - echo "✅ Go tests completed successfully!"
   rules:
-    - if: $CI_COMMIT_BRANCH == "clean-history"
+    - if: $CI_COMMIT_BRANCH == "main"
 
 fetch-github-results:
   stage: fetch-github-results
@@ -42,12 +42,12 @@ fetch-github-results:
     - apk add --no-cache curl jq
   script:
     - echo "Phase 3 Basic GitHub API check"
-    - echo "Clean history branch check stage"
+    - echo "Main branch check stage"
     - echo "Checking GitHub API"
     - echo "Basic test will add GitHub logic later"
     - echo "Phase 3 completed successfully"
   rules:
-    - if: $CI_COMMIT_BRANCH == "clean-history"
+    - if: $CI_COMMIT_BRANCH == "main"
   dependencies: []
 
 sync-github:
@@ -93,5 +93,5 @@ sync-github:
     -   exit 1
     - fi
   rules:
-    - if: $CI_COMMIT_BRANCH == "clean-history"
+    - if: $CI_COMMIT_BRANCH == "main"
   dependencies: []
