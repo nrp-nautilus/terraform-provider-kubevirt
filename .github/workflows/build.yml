@@ -80,12 +80,14 @@ jobs:
           echo "SHA256SUMS content:"
           cat SHA256SUMS
 
-      - name: Setup GPG
+      - name: Setup GPG (Optional)
+        if: ${{ secrets.GPG_PRIVATE_KEY != '' }}
         run: |
           echo "${{ secrets.GPG_PRIVATE_KEY }}" | gpg --import
           echo "${{ secrets.GPG_PASSPHRASE }}" | gpg --batch --yes --passphrase-fd 0 --pinentry-mode loopback --sign-key 1939A822A74AF28E
 
-      - name: Sign SHA256SUMS
+      - name: Sign SHA256SUMS (Optional)
+        if: ${{ secrets.GPG_PRIVATE_KEY != '' }}
         run: |
           cd bin
           echo "${{ secrets.GPG_PASSPHRASE }}" | gpg --batch --yes --passphrase-fd 0 --pinentry-mode loopback --detach-sign --armor SHA256SUMS
@@ -98,7 +100,7 @@ jobs:
           files: |
             bin/*
             bin/SHA256SUMS
-            bin/SHA256SUMS.asc
+            ${{ secrets.GPG_PRIVATE_KEY != '' && 'bin/SHA256SUMS.asc' || '' }}
           generate_release_notes: true
           tag_name: "v0.1.$(date +%s)"
           name: "Release $(date -u +'%Y-%m-%d %H:%M:%S UTC')"
