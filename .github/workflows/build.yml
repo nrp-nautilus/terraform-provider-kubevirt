@@ -80,27 +80,12 @@ jobs:
           echo "SHA256SUMS content:"
           cat SHA256SUMS
 
-      - name: Setup GPG (Optional)
-        if: ${{ secrets.GPG_PRIVATE_KEY != '' }}
-        run: |
-          echo "${{ secrets.GPG_PRIVATE_KEY }}" | gpg --import
-          echo "${{ secrets.GPG_PASSPHRASE }}" | gpg --batch --yes --passphrase-fd 0 --pinentry-mode loopback --sign-key 1939A822A74AF28E
-
-      - name: Sign SHA256SUMS (Optional)
-        if: ${{ secrets.GPG_PRIVATE_KEY != '' }}
-        run: |
-          cd bin
-          echo "${{ secrets.GPG_PASSPHRASE }}" | gpg --batch --yes --passphrase-fd 0 --pinentry-mode loopback --detach-sign --armor SHA256SUMS
-          echo "Signed SHA256SUMS.asc content:"
-          cat SHA256SUMS.asc
-
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v1
         with:
           files: |
             bin/*
             bin/SHA256SUMS
-            ${{ secrets.GPG_PRIVATE_KEY != '' && 'bin/SHA256SUMS.asc' || '' }}
           generate_release_notes: true
           tag_name: "v0.1.$(date +%s)"
           name: "Release $(date -u +'%Y-%m-%d %H:%M:%S UTC')"
