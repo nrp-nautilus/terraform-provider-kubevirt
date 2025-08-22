@@ -144,3 +144,4 @@ Check that:
 - Your GitLab project has the necessary permissions
 - The `CI_JOB_TOKEN` has access to create releases
 - The Go version in the pipeline matches your local version
+# Trigger new workflow run
