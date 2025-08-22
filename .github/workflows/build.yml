@@ -1,3 +1,4 @@
+# Force fresh workflow run - Thu Aug 22 00:05:00 EDT 2025
 name: Continuous Build Terraform Provider
 
 on:
@@ -111,4 +112,3 @@ jobs:
           name: "Release v0.1.${{ github.run_number }} - ${{ github.sha }}"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-# Force fresh workflow run - Thu Aug 21 22:40:57 EDT 2025
