@@ -1,4 +1,4 @@
-# Force fresh workflow run - Thu Aug 22 00:05:00 EDT 2025
+# Force fresh workflow run - Thu Aug 22 00:25:00 EDT 2025 - Updated to match synlestidae provider pattern
 name: Continuous Build Terraform Provider
 
 on:
@@ -63,8 +63,10 @@ jobs:
       - name: Build provider
         run: |
           mkdir -p bin
-          GOOS=linux GOARCH=amd64 go build -o bin/terraform-provider-${PROVIDER_NAME}_${GITHUB_SHA} .
-          GOOS=darwin GOARCH=amd64 go build -o bin/terraform-provider-${PROVIDER_NAME}_${GITHUB_SHA}_darwin .
+          # Build with version in filename like synlestidae provider
+          VERSION="v0.1.24"
+          GOOS=linux GOARCH=amd64 go build -o bin/terraform-provider-${PROVIDER_NAME}_${VERSION#v}_linux_amd64 .
+          GOOS=darwin GOARCH=amd64 go build -o bin/terraform-provider-${PROVIDER_NAME}_${VERSION#v}_darwin_amd64 .
           ls -la bin/
 
       - name: Upload build artifacts
@@ -77,9 +79,11 @@ jobs:
       - name: Generate SHA256 checksums
         run: |
           cd bin
-          shasum -a 256 * > SHA256SUMS
+          # Use version in filename like synlestidae provider
+          VERSION="v0.1.24"
+          shasum -a 256 * > "terraform-provider-${PROVIDER_NAME}_${VERSION#v}_SHA256SUMS"
           echo "SHA256SUMS content:"
-          cat SHA256SUMS
+          cat "terraform-provider-${PROVIDER_NAME}_${VERSION#v}_SHA256SUMS"
           echo "Current directory contents:"
           ls -la
 
@@ -95,20 +99,22 @@ jobs:
         run: |
           echo "Signing SHA256SUMS..."
           cd bin
-          echo "${{ secrets.GPG_PASSPHRASE }}" | gpg --batch --yes --passphrase-fd 0 --pinentry-mode loopback --detach-sign --armor SHA256SUMS
-          echo "Signed SHA256SUMS.asc content:"
-          cat SHA256SUMS.asc
+          VERSION="v0.1.24"
+          # Use .sig extension like synlestidae provider
+          echo "${{ secrets.GPG_PASSPHRASE }}" | gpg --batch --yes --passphrase-fd 0 --pinentry-mode loopback --detach-sign "terraform-provider-${PROVIDER_NAME}_${VERSION#v}_SHA256SUMS"
+          echo "Signed SHA256SUMS.sig content:"
+          cat "terraform-provider-${PROVIDER_NAME}_${VERSION#v}_SHA256SUMS.sig"
           echo "Signing completed"
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v1
         with:
           files: |
-            bin/SHA256SUMS
-            bin/SHA256SUMS.asc
-            bin/terraform-provider-kubevirt_*
+            bin/terraform-provider-kubevirt_0.1.24_SHA256SUMS
+            bin/terraform-provider-kubevirt_0.1.24_SHA256SUMS.sig
+            bin/terraform-provider-kubevirt_0.1.24_*
           generate_release_notes: true
-          tag_name: "v0.1.${{ github.run_number }}"
-          name: "Release v0.1.${{ github.run_number }} - ${{ github.sha }}"
+          tag_name: "v0.1.24"
+          name: "Release v0.1.24 - ${{ github.sha }}"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
