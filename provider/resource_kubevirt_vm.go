@@ -782,3 +782,4 @@ func (r *KubeVirtVMResource) ImportState(ctx context.Context, req resource.Impor
 	resource.ImportStatePassthroughID(ctx, path.Root("id"), req, resp)
 }
 // Trigger new build to fix exec format error
+// Trigger new build with ARM64 support
