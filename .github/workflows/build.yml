@@ -91,18 +91,25 @@ jobs:
           echo "Renaming binaries inside zip files to terraform-provider-kubevirt..."
           for zipfile in *.zip; do
             echo "Processing $zipfile..."
+            # Create temporary directory for this zip
+            mkdir -p temp_$(basename "$zipfile" .zip)
+            cd temp_$(basename "$zipfile" .zip)
             # Extract the zip
-            unzip -q "$zipfile"
-            # Remove the old binary
-            rm terraform-provider-kubevirt-*
-            # Create the correctly named binary (copy from the extracted one)
-            cp terraform-provider-kubevirt-* terraform-provider-kubevirt
+            unzip -o -q "../$zipfile"
+            # Get the binary name (should be terraform-provider-kubevirt-*)
+            BINARY_NAME=$(ls terraform-provider-kubevirt-*)
+            # Rename it to the correct Terraform provider name
+            mv "$BINARY_NAME" terraform-provider-kubevirt
             # Recreate the zip with the correct binary name
-            rm "$zipfile"
-            zip "$zipfile" terraform-provider-kubevirt
-            # Clean up extracted files
-            rm terraform-provider-kubevirt*
+            rm "../$zipfile"
+            zip "../$zipfile" terraform-provider-kubevirt
+            # Go back and clean up
+            cd ..
+            rm -rf temp_$(basename "$zipfile" .zip)
           done
+          
+          echo "Final zip files with correct binary names:"
+          ls -la *.zip
           
           echo "Final zip files with correct binary names:"
           ls -la *.zip
