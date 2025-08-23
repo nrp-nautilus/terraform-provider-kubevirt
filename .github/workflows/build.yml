@@ -136,7 +136,9 @@ jobs:
             bin/terraform-provider-kubevirt_0.1.${{ github.run_number }}_SHA256SUMS
             bin/terraform-provider-kubevirt_0.1.${{ github.run_number }}_SHA256SUMS.sig
             bin/terraform-provider-kubevirt_0.1.${{ github.run_number }}_linux_amd64.zip
+            bin/terraform-provider-kubevirt_0.1.${{ github.run_number }}_linux_arm64.zip
             bin/terraform-provider-kubevirt_0.1.${{ github.run_number }}_darwin_amd64.zip
+            bin/terraform-provider-kubevirt_0.1.${{ github.run_number }}_darwin_arm64.zip
           generate_release_notes: true
           tag_name: "v0.1.${{ github.run_number }}"
           name: "Release v0.1.${{ github.run_number }} - ${{ github.sha }}"
