@@ -783,3 +783,4 @@ func (r *KubeVirtVMResource) ImportState(ctx context.Context, req resource.Impor
 }
 // Trigger new build to fix exec format error
 // Trigger new build with ARM64 support
+// Trigger new build with proper checksums and signatures
