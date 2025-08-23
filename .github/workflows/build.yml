@@ -68,25 +68,44 @@ jobs:
           echo "Building version: $VERSION"
           
           # Build Linux amd64 binary
-          GOOS=linux GOARCH=amd64 go build -o bin/terraform-provider-${PROVIDER_NAME}_linux_amd64 .
+          GOOS=linux GOARCH=amd64 go build -o bin/terraform-provider-kubevirt-linux-amd64 .
           
           # Build Linux arm64 binary
-          GOOS=linux GOARCH=arm64 go build -o bin/terraform-provider-${PROVIDER_NAME}_linux_arm64 .
+          GOOS=linux GOARCH=arm64 go build -o bin/terraform-provider-kubevirt-linux-arm64 .
           
           # Build Darwin amd64 binary  
-          GOOS=darwin GOARCH=amd64 go build -o bin/terraform-provider-${PROVIDER_NAME}_darwin_amd64 .
+          GOOS=darwin GOARCH=amd64 go build -o bin/terraform-provider-kubevirt-darwin-amd64 .
           
           # Build Darwin arm64 binary
-          GOOS=darwin GOARCH=arm64 go build -o bin/terraform-provider-${PROVIDER_NAME}_darwin_arm64 .
+          GOOS=darwin GOARCH=arm64 go build -o bin/terraform-provider-kubevirt-darwin-arm64 .
           
           # Create zip files with proper naming convention for Terraform Cloud
           cd bin
-          zip "terraform-provider-${PROVIDER_NAME}_${VERSION#v}_linux_amd64.zip" terraform-provider-${PROVIDER_NAME}_linux_amd64
-          zip "terraform-provider-${PROVIDER_NAME}_${VERSION#v}_linux_arm64.zip" terraform-provider-${PROVIDER_NAME}_linux_arm64
-          zip "terraform-provider-${PROVIDER_NAME}_${VERSION#v}_darwin_amd64.zip" terraform-provider-${PROVIDER_NAME}_darwin_amd64
-          zip "terraform-provider-${PROVIDER_NAME}_${VERSION#v}_darwin_arm64.zip" terraform-provider-${PROVIDER_NAME}_darwin_arm64
+          zip "terraform-provider-${PROVIDER_NAME}_${VERSION#v}_linux_amd64.zip" terraform-provider-kubevirt-linux-amd64
+          zip "terraform-provider-${PROVIDER_NAME}_${VERSION#v}_linux_arm64.zip" terraform-provider-kubevirt-linux-arm64
+          zip "terraform-provider-${PROVIDER_NAME}_${VERSION#v}_darwin_amd64.zip" terraform-provider-kubevirt-darwin-amd64
+          zip "terraform-provider-${PROVIDER_NAME}_${VERSION#v}_darwin_arm64.zip" terraform-provider-kubevirt-darwin-arm64
           
           echo "Created files:"
+          # Rename binaries inside zip files to correct Terraform provider name
+          echo "Renaming binaries inside zip files to terraform-provider-kubevirt..."
+          for zipfile in *.zip; do
+            echo "Processing $zipfile..."
+            # Extract the zip
+            unzip -q "$zipfile"
+            # Remove the old binary
+            rm terraform-provider-kubevirt-*
+            # Create the correctly named binary (copy from the extracted one)
+            cp terraform-provider-kubevirt-* terraform-provider-kubevirt
+            # Recreate the zip with the correct binary name
+            rm "$zipfile"
+            zip "$zipfile" terraform-provider-kubevirt
+            # Clean up extracted files
+            rm terraform-provider-kubevirt*
+          done
+          
+          echo "Final zip files with correct binary names:"
+          ls -la *.zip
           ls -la *.zip
           ls -la *.zip
 
