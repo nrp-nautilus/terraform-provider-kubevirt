@@ -67,22 +67,27 @@ jobs:
           VERSION="v0.1.${{ github.run_number }}"
           echo "Building version: $VERSION"
           
-          # Build Linux binary
-          GOOS=linux GOARCH=amd64 go build -o bin/terraform-provider-${PROVIDER_NAME} .
+          # Build Linux amd64 binary
+          GOOS=linux GOARCH=amd64 go build -o bin/terraform-provider-${PROVIDER_NAME}_linux_amd64 .
           
-          # Build Darwin binary  
-          GOOS=darwin GOARCH=amd64 go build -o bin/terraform-provider-${PROVIDER_NAME} .
+          # Build Linux arm64 binary
+          GOOS=linux GOARCH=arm64 go build -o bin/terraform-provider-${PROVIDER_NAME}_linux_arm64 .
+          
+          # Build Darwin amd64 binary  
+          GOOS=darwin GOARCH=amd64 go build -o bin/terraform-provider-${PROVIDER_NAME}_darwin_amd64 .
+          
+          # Build Darwin arm64 binary
+          GOOS=darwin GOARCH=arm64 go build -o bin/terraform-provider-${PROVIDER_NAME}_darwin_arm64 .
           
           # Create zip files with proper naming convention for Terraform Cloud
           cd bin
-          zip "terraform-provider-${PROVIDER_NAME}_${VERSION#v}_linux_amd64.zip" terraform-provider-${PROVIDER_NAME}
-          mv terraform-provider-${PROVIDER_NAME} terraform-provider-${PROVIDER_NAME}_darwin
-          zip "terraform-provider-${PROVIDER_NAME}_${VERSION#v}_darwin_amd64.zip" terraform-provider-${PROVIDER_NAME}_darwin
-          
-          # Clean up raw binaries
-          rm terraform-provider-${PROVIDER_NAME}_darwin
+          zip "terraform-provider-${PROVIDER_NAME}_${VERSION#v}_linux_amd64.zip" terraform-provider-${PROVIDER_NAME}_linux_amd64
+          zip "terraform-provider-${PROVIDER_NAME}_${VERSION#v}_linux_arm64.zip" terraform-provider-${PROVIDER_NAME}_linux_arm64
+          zip "terraform-provider-${PROVIDER_NAME}_${VERSION#v}_darwin_amd64.zip" terraform-provider-${PROVIDER_NAME}_darwin_amd64
+          zip "terraform-provider-${PROVIDER_NAME}_${VERSION#v}_darwin_arm64.zip" terraform-provider-${PROVIDER_NAME}_darwin_arm64
           
           echo "Created files:"
+          ls -la *.zip
           ls -la *.zip
 
       - name: Upload build artifacts
