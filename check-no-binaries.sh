@@ -20,3 +20,4 @@ else
     echo "✅ No binary files detected - repository is clean!"
     echo "🚀 Safe to sync to GitHub"
 fi
+
