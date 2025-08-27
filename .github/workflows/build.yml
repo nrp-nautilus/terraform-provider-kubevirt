@@ -8,7 +8,7 @@ on:
     branches: [ main ]
 
 env:
-  GO_VERSION: '1.24.0'
+  GO_VERSION: '1.24.6'
   PROVIDER_NAME: 'kubevirt'
 
 # Add explicit permissions for creating releases
