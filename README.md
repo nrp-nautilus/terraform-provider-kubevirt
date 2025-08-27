@@ -149,3 +149,4 @@ Check that:
 # Trigger new build Wed Aug 27 17:50:53 EDT 2025
 # Trigger build with manifest fix Wed Aug 27 18:01:12 EDT 2025
 # Test current workflow Wed Aug 27 19:08:00 EDT 2025
+# Test clean workflow Wed Aug 27 19:11:08 EDT 2025
