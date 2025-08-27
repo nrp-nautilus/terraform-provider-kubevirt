@@ -8,7 +8,7 @@ on:
     branches: [ main ]
 
 env:
-  GO_VERSION: '1.21'
+  GO_VERSION: '1.24.0'
   PROVIDER_NAME: 'kubevirt'
 
 # Add explicit permissions for creating releases
@@ -25,6 +25,14 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Set up Go
+      - name: Verify Go module
+        run: |
+          echo "Go version: $(go version)"
+          echo "Go module path: $(go list -m)"
+          echo "Go module root: $(go env GOMOD)"
+          echo "Current directory: $(pwd)"
+          ls -la
+
         uses: actions/setup-go@v4
         with:
           go-version: ${{ env.GO_VERSION }}
@@ -56,11 +64,24 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Set up Go
+      - name: Verify Go module
+        run: |
+          echo "Go version: $(go version)"
+          echo "Go module path: $(go list -m)"
+          echo "Go module root: $(go env GOMOD)"
+          echo "Current directory: $(pwd)"
+          ls -la
+
         uses: actions/setup-go@v4
         with:
           go-version: ${{ env.GO_VERSION }}
 
       - name: Build provider
+      - name: Initialize Go module
+        run: |
+          go mod tidy
+          go mod download
+
         run: |
           mkdir -p bin
           # Build with dynamic version from github.run_number
