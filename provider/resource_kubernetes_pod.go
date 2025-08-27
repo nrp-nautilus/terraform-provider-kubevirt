@@ -35,6 +35,7 @@ func (r *KubernetesPodResource) Metadata(ctx context.Context, req resource.Metad
 
 func (r *KubernetesPodResource) Schema(ctx context.Context, req resource.SchemaRequest, resp *resource.SchemaResponse) {
 	resp.Schema = schema.Schema{
+		Version: 1,
 		Description: "Manages a Kubernetes Pod",
 		Attributes: map[string]schema.Attribute{
 			"id": schema.StringAttribute{
