@@ -61,7 +61,7 @@ jobs:
           for zipfile in *.zip; do
             echo "Processing $zipfile..."
             # Extract the zip
-            unzip -q "$zipfile"
+            unzip -o -q "$zipfile"
             # Get the binary name (should be terraform-provider-kubevirt-*)
             BINARY_NAME=$(ls terraform-provider-kubevirt-*)
             # Rename it to the correct Terraform provider name
