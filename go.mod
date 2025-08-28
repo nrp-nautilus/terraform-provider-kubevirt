@@ -1,4 +1,4 @@
-module github.com/kubevirt/terraform-provider-kubevirt
+module github.com/nrp-nautilus/terraform-provider-kubevirt
 
 go 1.18
 
