@@ -157,3 +157,4 @@ Check that:
 # Force workflow refresh Wed Aug 27 21:15:59 EDT 2025
 # Test completely new workflow with correct step order Wed Aug 27 21:24:44 EDT 2025
 # Test workflow with unzip fix Wed Aug 27 21:36:32 EDT 2025
+# Test workflow with unzip -o fix Wed Aug 27 21:39:00 EDT 2025
