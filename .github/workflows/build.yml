@@ -50,6 +50,23 @@ jobs:
           GOOS=darwin GOARCH=arm64 go build -o bin/terraform-provider-kubevirt-darwin-arm64 .
           
           # Create zip files
+          # Rename binaries inside zip files to correct Terraform provider name
+          echo "Renaming binaries inside zip files to terraform-provider-kubevirt..."
+          for zipfile in *.zip; do
+            echo "Processing $zipfile..."
+            # Extract the zip
+            unzip -q "$zipfile"
+            # Get the binary name (should be terraform-provider-kubevirt-*)
+            BINARY_NAME=$(ls terraform-provider-kubevirt-*)
+            # Rename it to the correct Terraform provider name
+            mv "$BINARY_NAME" terraform-provider-kubevirt
+            # Recreate the zip with the correct binary name
+            rm "$zipfile"
+            zip "$zipfile" terraform-provider-kubevirt
+            # Clean up extracted files
+            rm terraform-provider-kubevirt
+          done
+
           cd bin
           zip "terraform-provider-${PROVIDER_NAME}_${VERSION#v}_linux_amd64.zip" terraform-provider-kubevirt-linux-amd64
           zip "terraform-provider-${PROVIDER_NAME}_${VERSION#v}_linux_arm64.zip" terraform-provider-kubevirt-linux-arm64
