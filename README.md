@@ -160,3 +160,4 @@ Check that:
 # Test workflow with unzip -o fix Wed Aug 27 21:39:00 EDT 2025
 # Test workflow with find fix for binary names Wed Aug 27 21:41:38 EDT 2025
 # Fixed GPG signing template issue
+Force updating .goreleaser.yml
