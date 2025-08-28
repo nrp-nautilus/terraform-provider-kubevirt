@@ -2,7 +2,7 @@
 # Currently its setup to run on any tag that matches the pattern "v*" (ie. v0.1.0).
 #
 # This uses an action (crazy-max/ghaction-import-gpg) that assumes you set your
-# private key in the `GPG_PRIVATE_KEY` secret and passphrase in the `PASSPHRASE`
+# private key in the `GPG_PRIVATE_KEY` secret and passphrase in the `GPG_PASSPHRASE`
 # secret. If you would rather own your own GPG handling, please fork this action
 # or use an alternative one for key handling.
 #
@@ -38,13 +38,13 @@ jobs:
         id: import_gpg
         with:
           gpg_private_key: ${{ secrets.GPG_PRIVATE_KEY }}
-          passphrase: ${{ secrets.PASSPHRASE }}
+          passphrase: ${{ secrets.GPG_PASSPHRASE }}
       -
         name: Run GoReleaser
         uses: goreleaser/goreleaser-action@f82d6c1c344bcacabba2c841718984797f664a6b # v4.2.0
         with:
           version: latest
-          args: release --rm-dist
+          args: release --clean
         env:
           GPG_FINGERPRINT: ${{ steps.import_gpg.outputs.fingerprint }}
           # GitHub sets this automatically
