@@ -154,3 +154,4 @@ Check that:
 # Test fixed workflow with binary renaming Wed Aug 27 20:57:44 EDT 2025
 # Test workflow with manually inserted binary renaming Wed Aug 27 21:02:57 EDT 2025
 # Test workflow with correct step order Wed Aug 27 21:10:00 EDT 2025
+# Force workflow refresh Wed Aug 27 21:15:59 EDT 2025
