@@ -5,7 +5,7 @@ import (
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/validation"
-	"github.com/kubevirt/terraform-provider-kubevirt/kubevirt/utils"
+	"github.com/nrp-nautilus/terraform-provider-kubevirt/kubevirt/utils"
 	api "k8s.io/api/core/v1"
 	v1 "k8s.io/api/core/v1"
 )

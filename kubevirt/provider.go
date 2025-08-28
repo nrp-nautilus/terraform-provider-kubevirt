@@ -7,7 +7,7 @@ import (
 	"os"
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
-	"github.com/kubevirt/terraform-provider-kubevirt/kubevirt/client"
+	"github.com/nrp-nautilus/terraform-provider-kubevirt/kubevirt/client"
 	"github.com/mitchellh/go-homedir"
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
 	restclient "k8s.io/client-go/rest"

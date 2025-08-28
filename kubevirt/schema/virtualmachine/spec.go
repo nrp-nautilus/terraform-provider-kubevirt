@@ -5,7 +5,7 @@ import (
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/validation"
-	"github.com/kubevirt/terraform-provider-kubevirt/kubevirt/schema/virtualmachineinstance"
+	"github.com/nrp-nautilus/terraform-provider-kubevirt/kubevirt/schema/virtualmachineinstance"
 	kubevirtapiv1 "kubevirt.io/api/core/v1"
 )
 

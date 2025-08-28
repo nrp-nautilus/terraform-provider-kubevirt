@@ -3,7 +3,7 @@ package terraform
 import (
 	"regexp"
 
-	"github.com/kubevirt/terraform-provider-kubevirt/ci-tests/terraform/diagnostics"
+	"github.com/nrp-nautilus/terraform-provider-kubevirt/ci-tests/terraform/diagnostics"
 )
 
 // diagnoseApplyError accepts an error from terraform runs and tries to diagnose the

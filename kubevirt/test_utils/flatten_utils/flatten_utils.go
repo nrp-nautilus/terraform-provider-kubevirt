@@ -2,8 +2,8 @@ package flatten_utils
 
 import (
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
-	test_entities "github.com/kubevirt/terraform-provider-kubevirt/kubevirt/test_utils/entities"
-	"github.com/kubevirt/terraform-provider-kubevirt/kubevirt/utils"
+	test_entities "github.com/nrp-nautilus/terraform-provider-kubevirt/kubevirt/test_utils/entities"
+	"github.com/nrp-nautilus/terraform-provider-kubevirt/kubevirt/utils"
 
 	k8sv1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"

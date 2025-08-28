@@ -8,8 +8,8 @@ import (
 	"testing"
 
 	"github.com/hashicorp/terraform-exec/tfexec"
-	"github.com/kubevirt/terraform-provider-kubevirt/ci-tests/common"
-	"github.com/kubevirt/terraform-provider-kubevirt/ci-tests/terraform"
+	"github.com/nrp-nautilus/terraform-provider-kubevirt/ci-tests/common"
+	"github.com/nrp-nautilus/terraform-provider-kubevirt/ci-tests/terraform"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	"github.com/onsi/gomega/format"

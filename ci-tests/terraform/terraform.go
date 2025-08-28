@@ -13,8 +13,8 @@ import (
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 
-	"github.com/kubevirt/terraform-provider-kubevirt/ci-tests/terraform/data"
-	"github.com/kubevirt/terraform-provider-kubevirt/ci-tests/terraform/lineprinter"
+	"github.com/nrp-nautilus/terraform-provider-kubevirt/ci-tests/terraform/data"
+	"github.com/nrp-nautilus/terraform-provider-kubevirt/ci-tests/terraform/lineprinter"
 )
 
 func Init(tfWorkDir string, testName string, tfExecPath string) error {

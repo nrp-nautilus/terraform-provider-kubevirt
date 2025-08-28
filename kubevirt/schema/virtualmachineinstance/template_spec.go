@@ -4,7 +4,7 @@ import (
 	"fmt"
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
-	"github.com/kubevirt/terraform-provider-kubevirt/kubevirt/schema/k8s"
+	"github.com/nrp-nautilus/terraform-provider-kubevirt/kubevirt/schema/k8s"
 	kubevirtapiv1 "kubevirt.io/api/core/v1"
 )
 

@@ -2,8 +2,8 @@ package datavolume
 
 import (
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
-	"github.com/kubevirt/terraform-provider-kubevirt/kubevirt/schema/k8s"
-	"github.com/kubevirt/terraform-provider-kubevirt/kubevirt/utils/patch"
+	"github.com/nrp-nautilus/terraform-provider-kubevirt/kubevirt/schema/k8s"
+	"github.com/nrp-nautilus/terraform-provider-kubevirt/kubevirt/utils/patch"
 	cdiv1 "kubevirt.io/containerized-data-importer-api/pkg/apis/core/v1beta1"
 )
 

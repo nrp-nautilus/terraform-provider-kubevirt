@@ -2,8 +2,8 @@ package virtualmachine
 
 import (
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
-	"github.com/kubevirt/terraform-provider-kubevirt/kubevirt/schema/k8s"
-	"github.com/kubevirt/terraform-provider-kubevirt/kubevirt/utils/patch"
+	"github.com/nrp-nautilus/terraform-provider-kubevirt/kubevirt/schema/k8s"
+	"github.com/nrp-nautilus/terraform-provider-kubevirt/kubevirt/utils/patch"
 	kubevirtapiv1 "kubevirt.io/api/core/v1"
 )
 

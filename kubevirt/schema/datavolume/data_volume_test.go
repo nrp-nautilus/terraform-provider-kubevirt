@@ -3,14 +3,14 @@ package datavolume
 import (
 	"testing"
 
-	"github.com/kubevirt/terraform-provider-kubevirt/kubevirt/test_utils/expand_utils"
-	"github.com/kubevirt/terraform-provider-kubevirt/kubevirt/test_utils/flatten_utils"
+	"github.com/nrp-nautilus/terraform-provider-kubevirt/kubevirt/test_utils/expand_utils"
+	"github.com/nrp-nautilus/terraform-provider-kubevirt/kubevirt/test_utils/flatten_utils"
 	"gotest.tools/assert"
 
 	cdiv1 "kubevirt.io/containerized-data-importer-api/pkg/apis/core/v1beta1"
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
-	"github.com/kubevirt/terraform-provider-kubevirt/kubevirt/test_utils"
+	"github.com/nrp-nautilus/terraform-provider-kubevirt/kubevirt/test_utils"
 )
 
 func TestExpandDataVolumeTemplates(t *testing.T) {

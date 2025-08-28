@@ -2,7 +2,7 @@ package main
 
 import (
 	"github.com/hashicorp/terraform-plugin-sdk/v2/plugin"
-	"github.com/kubevirt/terraform-provider-kubevirt/kubevirt"
+	"github.com/nrp-nautilus/terraform-provider-kubevirt/kubevirt"
 )
 
 // Generate the Terraform provider documentation using `tfplugindocs`:

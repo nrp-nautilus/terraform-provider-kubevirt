@@ -5,7 +5,7 @@ import (
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/validation"
-	"github.com/kubevirt/terraform-provider-kubevirt/kubevirt/schema/k8s"
+	"github.com/nrp-nautilus/terraform-provider-kubevirt/kubevirt/schema/k8s"
 	cdiv1 "kubevirt.io/containerized-data-importer-api/pkg/apis/core/v1beta1"
 )
 
