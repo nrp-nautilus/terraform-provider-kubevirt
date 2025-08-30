@@ -1,0 +1,85 @@
+name: Release Provider
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: '1.24.6'
+
+      - name: Build provider
+        run: |
+          mkdir -p bin
+          VERSION=${GITHUB_REF#refs/tags/}
+          echo "Building version: $VERSION"
+          
+          # Build for all platforms
+          GOOS=linux GOARCH=amd64 go build -o bin/terraform-provider-kubevirt-linux-amd64 .
+          GOOS=linux GOARCH=arm64 go build -o bin/terraform-provider-kubevirt-linux-arm64 .
+          GOOS=darwin GOARCH=amd64 go build -o bin/terraform-provider-kubevirt-darwin-amd64 .
+          GOOS=darwin GOARCH=arm64 go build -o bin/terraform-provider-kubevirt-darwin-arm64 .
+          
+          # Create zip files
+          cd bin
+          zip "terraform-provider-kubevirt_${VERSION#v}_linux_amd64.zip" terraform-provider-kubevirt-linux-amd64
+          zip "terraform-provider-kubevirt_${VERSION#v}_linux_arm64.zip" terraform-provider-kubevirt-linux-arm64
+          zip "terraform-provider-kubevirt_${VERSION#v}_darwin_amd64.zip" terraform-provider-kubevirt-darwin-amd64
+          zip "terraform-provider-kubevirt_${VERSION#v}_darwin_arm64.zip" terraform-provider-kubevirt-darwin-arm64
+          
+          # Rename binaries inside zip files
+          for zipfile in *.zip; do
+            echo "Processing $zipfile..."
+            unzip -o -q "$zipfile"
+            mv terraform-provider-kubevirt-* terraform-provider-kubevirt
+            rm "$zipfile"
+            zip "$zipfile" terraform-provider-kubevirt
+            rm terraform-provider-kubevirt
+          done
+          
+          # Copy manifest
+          cp ../terraform-registry-manifest.json .
+          
+          # Generate checksums
+          shasum -a 256 *.zip > "terraform-provider-kubevirt_${VERSION#v}_SHA256SUMS"
+          
+          echo "Files created:"
+          ls -la
+
+      - name: Setup GPG
+        run: |
+          echo "${{ secrets.GPG_PRIVATE_KEY }}" | gpg --batch --yes --import
+          echo "${{ secrets.GPG_PASSPHRASE }}" | gpg --batch --yes --passphrase-fd 0 --pinentry-mode loopback --list-secret-keys
+
+      - name: Sign checksums
+        run: |
+          cd bin
+          VERSION=${GITHUB_REF#refs/tags/}
+          echo "${{ secrets.GPG_PASSPHRASE }}" | gpg --batch --yes --passphrase-fd 0 --pinentry-mode loopback --detach-sign "terraform-provider-kubevirt_${VERSION#v}_SHA256SUMS"
+
+      - name: Create release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: |
+            bin/terraform-registry-manifest.json
+            bin/terraform-provider-kubevirt_${{ github.ref_name#v }}_SHA256SUMS
+            bin/terraform-provider-kubevirt_${{ github.ref_name#v }}_SHA256SUMS.sig
+            bin/terraform-provider-kubevirt_${{ github.ref_name#v }}_linux_amd64.zip
+            bin/terraform-provider-kubevirt_${{ github.ref_name#v }}_linux_arm64.zip
+            bin/terraform-provider-kubevirt_${{ github.ref_name#v }}_darwin_amd64.zip
+            bin/terraform-provider-kubevirt_${{ github.ref_name#v }}_darwin_arm64.zip
+          generate_release_notes: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
