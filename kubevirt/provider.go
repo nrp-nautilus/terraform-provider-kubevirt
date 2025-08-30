@@ -104,6 +104,7 @@ func Provider() *schema.Provider {
 		ResourcesMap: map[string]*schema.Resource{
 			"kubevirt_virtual_machine": resourceKubevirtVirtualMachine(),
 			"kubevirt_data_volume":     resourceKubevirtDataVolume(),
+			"kubevirt_kubevirt_vm":     resourceKubevirtKubevirtVM(),
 		},
 	}
 	p.ConfigureFunc = func(resourceData *schema.ResourceData) (interface{}, error) {

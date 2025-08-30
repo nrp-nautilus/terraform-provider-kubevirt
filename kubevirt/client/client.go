@@ -50,6 +50,9 @@ type Client interface {
 	GetDataVolume(namespace string, name string) (*cdiv1.DataVolume, error)
 	UpdateDataVolume(namespace string, name string, dv *cdiv1.DataVolume, data []byte) error
 	DeleteDataVolume(namespace string, name string) error
+
+	// Get dynamic client for custom resources
+	GetDynamicClient() dynamic.Interface
 }
 
 type client struct {
@@ -157,6 +160,11 @@ func (c *client) UpdateDataVolume(namespace string, name string, dv *cdiv1.DataV
 
 func (c *client) DeleteDataVolume(namespace string, name string) error {
 	return c.deleteResource(namespace, name, dvRes())
+}
+
+// GetDynamicClient returns the underlying dynamic client for custom resource operations
+func (c *client) GetDynamicClient() dynamic.Interface {
+	return c.dynamicClient
 }
 
 func dvUpdateTypeMeta(dv *cdiv1.DataVolume) {
