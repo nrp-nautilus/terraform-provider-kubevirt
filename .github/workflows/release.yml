@@ -44,8 +44,8 @@ jobs:
       -
         name: Configure GPG for Batch Mode
         run: |
-          echo "batch-mode" >> ~/.gnupg/gpg.conf
-          echo "no-tty" >> ~/.gnupg/gpg.conf
+          echo "no-tty" > ~/.gnupg/gpg.conf
+          echo "batch" >> ~/.gnupg/gpg.conf
       -
         name: Run GoReleaser
         uses: goreleaser/goreleaser-action@f82d6c1c344bcacabba2c841718984797f664a6b # v4.2.0
