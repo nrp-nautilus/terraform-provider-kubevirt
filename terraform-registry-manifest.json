@@ -8,7 +8,7 @@
     "providers": [
         {
             "name": "kubevirt",
-            "namespace": "terraform-dev",
+            "namespace": "nrp-nautilus",
             "type": "kubevirt",
             "versions": [
                 {
