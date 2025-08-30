@@ -42,8 +42,6 @@ jobs:
         env:
           GPG_TTY: /dev/console
       -
-
-      -
         name: Run GoReleaser
         uses: goreleaser/goreleaser-action@f82d6c1c344bcacabba2c841718984797f664a6b # v4.2.0
         with:
