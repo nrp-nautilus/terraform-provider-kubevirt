@@ -132,7 +132,14 @@ func providerConfigure(resourceData *schema.ResourceData, terraformVersion strin
 		return nil, err
 	}
 	if cfg == nil {
-		cfg = &restclient.Config{}
+		// Try to load in-cluster configuration first
+		if inClusterConfig, err := restclient.InClusterConfig(); err == nil {
+			log.Printf("[INFO] Using in-cluster configuration")
+			cfg = inClusterConfig
+		} else {
+			log.Printf("[INFO] In-cluster configuration not available, using default config")
+			cfg = &restclient.Config{}
+		}
 	}
 
 	// Overriding with static configuration
