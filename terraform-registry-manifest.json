@@ -274,7 +274,7 @@
                             "arch": "arm64"
                         }
                     ]
-                },
+,
                 {
                     "version": "0.2.36",
                     "protocols": [
