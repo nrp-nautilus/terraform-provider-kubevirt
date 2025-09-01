@@ -520,12 +520,16 @@ func updateResourceDataFromVM(vm *unstructured.Unstructured, d *schema.ResourceD
 									return err
 								}
 							}
-							if cpu, ok := requests["cpu"].(string); ok {
+							if cpu, ok := requests["cpu"].(string); ok && cpu != "" {
 								if cpuInt, err := strconv.Atoi(cpu); err == nil {
 									if err := d.Set("cpu", cpuInt); err != nil {
 										return err
 									}
+								} else {
+									log.Printf("[WARN] Failed to convert CPU value '%s' to int: %v", cpu, err)
 								}
+							} else {
+								log.Printf("[DEBUG] CPU value not found or empty in requests")
 							}
 						}
 					}
