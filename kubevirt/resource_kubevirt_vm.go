@@ -123,6 +123,11 @@ func resourceKubevirtKubevirtVM() *schema.Resource {
 					},
 				},
 			},
+			"affinity": {
+				Type:        schema.TypeString,
+				Optional:    true,
+				Description: "Affinity configuration as JSON string (advanced users)",
+			},
 			"host_devices": {
 				Type:        schema.TypeList,
 				Optional:    true,
@@ -157,6 +162,44 @@ func resourceKubevirtKubevirtVM() *schema.Resource {
 							Type:        schema.TypeString,
 							Required:    true,
 							Description: "USB product ID",
+						},
+					},
+				},
+			},
+			"pci_devices": {
+				Type:        schema.TypeList,
+				Optional:    true,
+				Description: "PCI devices to attach to the VM",
+				Elem: &schema.Resource{
+					Schema: map[string]*schema.Schema{
+						"name": {
+							Type:        schema.TypeString,
+							Required:    true,
+							Description: "Name of the PCI device",
+						},
+						"device_name": {
+							Type:        schema.TypeString,
+							Required:    true,
+							Description: "Device name on the host",
+						},
+					},
+				},
+			},
+			"gpu_devices": {
+				Type:        schema.TypeList,
+				Optional:    true,
+				Description: "GPU devices to attach to the VM",
+				Elem: &schema.Resource{
+					Schema: map[string]*schema.Schema{
+						"name": {
+							Type:        schema.TypeString,
+							Required:    true,
+							Description: "Name of the GPU device",
+						},
+						"device_name": {
+							Type:        schema.TypeString,
+							Required:    true,
+							Description: "Device name on the host",
 						},
 					},
 				},
@@ -489,6 +532,53 @@ func createVMObject(d *schema.ResourceData) (*unstructured.Unstructured, error) 
 	// Add node selector if specified
 	if nodeSelector, ok := d.GetOk("node_selector"); ok && len(nodeSelector.(map[string]interface{})) > 0 {
 		spec["template"].(map[string]interface{})["spec"].(map[string]interface{})["nodeSelector"] = nodeSelector.(map[string]interface{})
+	}
+	
+	// Add affinity if specified (as JSON string)
+	if affinity, ok := d.GetOk("affinity"); ok && affinity.(string) != "" {
+		spec["template"].(map[string]interface{})["spec"].(map[string]interface{})["affinity"] = affinity.(string)
+	}
+	
+	// Add PCI devices if specified
+	if pciDevices, ok := d.GetOk("pci_devices"); ok && len(pciDevices.([]interface{})) > 0 {
+		var pciObjects []map[string]interface{}
+		for _, pci := range pciDevices.([]interface{}) {
+			pciMap := pci.(map[string]interface{})
+			pciObject := map[string]interface{}{
+				"name":       pciMap["name"].(string),
+				"deviceName": pciMap["device_name"].(string),
+			}
+			pciObjects = append(pciObjects, pciObject)
+		}
+		
+		if len(pciObjects) > 0 {
+			spec["template"].(map[string]interface{})["spec"].(map[string]interface{})["domain"].(map[string]interface{})["devices"].(map[string]interface{})["hostDevices"] = pciObjects
+		}
+	}
+	
+	// Add GPU devices if specified
+	if gpuDevices, ok := d.GetOk("gpu_devices"); ok && len(gpuDevices.([]interface{})) > 0 {
+		var gpuObjects []map[string]interface{}
+		for _, gpu := range gpuDevices.([]interface{}) {
+			gpuMap := gpu.(map[string]interface{})
+			gpuObject := map[string]interface{}{
+				"name":       gpuMap["name"].(string),
+				"deviceName": gpuMap["device_name"].(string),
+			}
+			gpuObjects = append(gpuObjects, gpuObject)
+		}
+		
+		if len(gpuObjects) > 0 {
+			// Add to existing hostDevices or create new
+			if existingHostDevices, ok := spec["template"].(map[string]interface{})["spec"].(map[string]interface{})["domain"].(map[string]interface{})["devices"].(map[string]interface{})["hostDevices"]; ok {
+				if existingList, ok := existingHostDevices.([]map[string]interface{}); ok {
+					existingList = append(existingList, gpuObjects...)
+					spec["template"].(map[string]interface{})["spec"].(map[string]interface{})["domain"].(map[string]interface{})["devices"].(map[string]interface{})["hostDevices"] = existingList
+				}
+			} else {
+				spec["template"].(map[string]interface{})["spec"].(map[string]interface{})["domain"].(map[string]interface{})["devices"].(map[string]interface{})["hostDevices"] = gpuObjects
+			}
+		}
 	}
 	
 	vm.Object["spec"] = spec
