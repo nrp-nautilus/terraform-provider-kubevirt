@@ -2,6 +2,7 @@ package kubevirt
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"log"
 	"strconv"
@@ -536,7 +537,12 @@ func createVMObject(d *schema.ResourceData) (*unstructured.Unstructured, error) 
 	
 	// Add affinity if specified (as JSON string)
 	if affinity, ok := d.GetOk("affinity"); ok && affinity.(string) != "" {
-		spec["template"].(map[string]interface{})["spec"].(map[string]interface{})["affinity"] = affinity.(string)
+		var affinityObj map[string]interface{}
+		if err := json.Unmarshal([]byte(affinity.(string)), &affinityObj); err == nil {
+			spec["template"].(map[string]interface{})["spec"].(map[string]interface{})["affinity"] = affinityObj
+		} else {
+			log.Printf("[WARN] Failed to parse affinity JSON: %v", err)
+		}
 	}
 	
 	// Add PCI devices if specified
