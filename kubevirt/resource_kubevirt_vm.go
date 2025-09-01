@@ -427,12 +427,6 @@ func createVMObject(d *schema.ResourceData) (*unstructured.Unstructured, error) 
 								"disk": map[string]interface{}{},
 							},
 						},
-						"interfaces": []map[string]interface{}{
-							{
-								"name": "default",
-								"bridge": map[string]interface{}{},
-							},
-						},
 					},
 					"resources": map[string]interface{}{
 						"requests": map[string]interface{}{
