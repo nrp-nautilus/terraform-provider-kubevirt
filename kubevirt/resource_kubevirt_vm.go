@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"strconv"
 	"strings"
 	"time"
 
@@ -520,8 +521,10 @@ func updateResourceDataFromVM(vm *unstructured.Unstructured, d *schema.ResourceD
 								}
 							}
 							if cpu, ok := requests["cpu"].(string); ok {
-								if err := d.Set("cpu", cpu); err != nil {
-									return err
+								if cpuInt, err := strconv.Atoi(cpu); err == nil {
+									if err := d.Set("cpu", cpuInt); err != nil {
+										return err
+									}
 								}
 							}
 						}
