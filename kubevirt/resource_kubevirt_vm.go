@@ -123,6 +123,134 @@ func resourceKubevirtKubevirtVM() *schema.Resource {
 					},
 				},
 			},
+			"affinity": {
+				Type:        schema.TypeList,
+				Optional:    true,
+				Description: "Affinity for node and pod scheduling",
+				MaxItems:    1,
+				Elem: &schema.Resource{
+					Schema: map[string]*schema.Schema{
+						"node_affinity": {
+							Type:        schema.TypeList,
+							Optional:    true,
+							Description: "Node affinity scheduling rules",
+							MaxItems:    1,
+							Elem: &schema.Resource{
+								Schema: map[string]*schema.Schema{
+									"required_during_scheduling_ignored_during_execution": {
+										Type:        schema.TypeList,
+										Optional:    true,
+										Description: "Required node affinity rules",
+										Elem: &schema.Resource{
+											Schema: map[string]*schema.Schema{
+												"node_selector_terms": {
+													Type:        schema.TypeList,
+													Required:    true,
+													Description: "Node selector terms",
+													Elem: &schema.Resource{
+														Schema: map[string]*schema.Schema{
+															"match_expressions": {
+																Type:        schema.TypeList,
+																Optional:    true,
+																Description: "Node selector expressions",
+																Elem: &schema.Resource{
+																	Schema: map[string]*schema.Schema{
+																		"key": {
+																			Type:        schema.TypeString,
+																			Required:    true,
+																			Description: "Label key",
+																		},
+																		"operator": {
+																			Type:        schema.TypeString,
+																			Required:    true,
+																			Description: "Operator (In, NotIn, Exists, DoesNotExist, Gt, Lt)",
+																		},
+																		"values": {
+																			Type:        schema.TypeList,
+																			Optional:    true,
+																			Description: "Label values",
+																			Elem:        &schema.Schema{Type: schema.TypeString},
+																		},
+																	},
+																},
+															},
+														},
+													},
+												},
+											},
+										},
+									},
+								},
+							},
+						},
+						"pod_affinity": {
+							Type:        schema.TypeList,
+							Optional:    true,
+							Description: "Pod affinity scheduling rules",
+							MaxItems:    1,
+							Elem: &schema.Resource{
+								Schema: map[string]*schema.Schema{
+									"required_during_scheduling_ignored_during_execution": {
+										Type:        schema.TypeList,
+										Optional:    true,
+										Description: "Required pod affinity rules",
+										Elem: &schema.Resource{
+											Schema: map[string]*schema.Schema{
+												"label_selector": {
+													Type:        schema.TypeList,
+													Optional:    true,
+													Description: "Label selector",
+													MaxItems:    1,
+													Elem: &schema.Resource{
+														Schema: map[string]*schema.Schema{
+															"match_expressions": {
+																Type:        schema.TypeList,
+																Optional:    true,
+																Description: "Match expressions",
+																Elem: &schema.Resource{
+																	Schema: map[string]*schema.Schema{
+																		"key": {
+																			Type:        schema.TypeString,
+																			Required:    true,
+																			Description: "Label key",
+																		},
+																		"operator": {
+																			Type:        schema.TypeString,
+																			Required:    true,
+																			Description: "Operator (In, NotIn, Exists, DoesNotExist)",
+																		},
+																		"values": {
+																			Type:        schema.TypeList,
+																			Optional:    true,
+																			Description: "Label values",
+																			Elem:        &schema.Schema{Type: schema.TypeString},
+																		},
+																	},
+																},
+															},
+														},
+													},
+												},
+												"namespaces": {
+													Type:        schema.TypeList,
+													Optional:    true,
+													Description: "Namespaces to match",
+													Elem:        &schema.Schema{Type: schema.TypeString},
+												},
+												"topology_key": {
+													Type:        schema.TypeString,
+													Required:    true,
+													Description: "Topology key for affinity",
+												},
+											},
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
 			"host_devices": {
 				Type:        schema.TypeList,
 				Optional:    true,
@@ -157,6 +285,64 @@ func resourceKubevirtKubevirtVM() *schema.Resource {
 							Type:        schema.TypeString,
 							Required:    true,
 							Description: "USB product ID",
+						},
+					},
+				},
+			},
+			"pci_devices": {
+				Type:        schema.TypeList,
+				Optional:    true,
+				Description: "PCI devices to attach to the VM",
+				Elem: &schema.Resource{
+					Schema: map[string]*schema.Schema{
+						"name": {
+							Type:        schema.TypeString,
+							Required:    true,
+							Description: "Name of the PCI device",
+						},
+						"device_name": {
+							Type:        schema.TypeString,
+							Required:    true,
+							Description: "Device name on the host",
+						},
+						"vendor_id": {
+							Type:        schema.TypeString,
+							Optional:    true,
+							Description: "PCI vendor ID (hex format, e.g., '10de' for NVIDIA)",
+						},
+						"product_id": {
+							Type:        schema.TypeString,
+							Optional:    true,
+							Description: "PCI product ID (hex format)",
+						},
+					},
+				},
+			},
+			"gpu_devices": {
+				Type:        schema.TypeList,
+				Optional:    true,
+				Description: "GPU devices to attach to the VM",
+				Elem: &schema.Resource{
+					Schema: map[string]*schema.Schema{
+						"name": {
+							Type:        schema.TypeString,
+							Required:    true,
+							Description: "Name of the GPU device",
+						},
+						"device_name": {
+							Type:        schema.TypeString,
+							Required:    true,
+							Description: "Device name on the host",
+						},
+						"vendor_id": {
+							Type:        schema.TypeString,
+							Optional:    true,
+							Description: "GPU vendor ID (e.g., '10de' for NVIDIA, '1002' for AMD)",
+						},
+						"product_id": {
+							Type:        schema.TypeString,
+							Optional:    true,
+							Description: "GPU product ID",
 						},
 					},
 				},
@@ -489,6 +675,72 @@ func createVMObject(d *schema.ResourceData) (*unstructured.Unstructured, error) 
 	// Add node selector if specified
 	if nodeSelector, ok := d.GetOk("node_selector"); ok && len(nodeSelector.(map[string]interface{})) > 0 {
 		spec["template"].(map[string]interface{})["spec"].(map[string]interface{})["nodeSelector"] = nodeSelector.(map[string]interface{})
+	}
+	
+	// Add affinity if specified
+	if affinity, ok := d.GetOk("affinity"); ok && len(affinity.([]interface{})) > 0 {
+		if affinityList := affinity.([]interface{}); len(affinityList) > 0 && affinityList[0] != nil {
+			affinityMap := affinityList[0].(map[string]interface{})
+			spec["template"].(map[string]interface{})["spec"].(map[string]interface{})["affinity"] = affinityMap
+		}
+	}
+	
+	// Add PCI devices if specified
+	if pciDevices, ok := d.GetOk("pci_devices"); ok && len(pciDevices.([]interface{})) > 0 {
+		var pciObjects []map[string]interface{}
+		for _, pci := range pciDevices.([]interface{}) {
+			pciMap := pci.(map[string]interface{})
+			pciObject := map[string]interface{}{
+				"name":        pciMap["name"].(string),
+				"deviceName":  pciMap["device_name"].(string),
+			}
+			
+			if vendorID, ok := pciMap["vendor_id"].(string); ok && vendorID != "" {
+				pciObject["vendorId"] = vendorID
+			}
+			if productID, ok := pciMap["product_id"].(string); ok && productID != "" {
+				pciObject["productId"] = productID
+			}
+			
+			pciObjects = append(pciObjects, pciObject)
+		}
+		
+		if len(pciObjects) > 0 {
+			spec["template"].(map[string]interface{})["spec"].(map[string]interface{})["domain"].(map[string]interface{})["devices"].(map[string]interface{})["hostDevices"] = pciObjects
+		}
+	}
+	
+	// Add GPU devices if specified
+	if gpuDevices, ok := d.GetOk("gpu_devices"); ok && len(gpuDevices.([]interface{})) > 0 {
+		var gpuObjects []map[string]interface{}
+		for _, gpu := range gpuDevices.([]interface{}) {
+			gpuMap := gpu.(map[string]interface{})
+			gpuObject := map[string]interface{}{
+				"name":        gpuMap["name"].(string),
+				"deviceName":  gpuMap["device_name"].(string),
+			}
+			
+			if vendorID, ok := gpuMap["vendor_id"].(string); ok && vendorID != "" {
+				gpuObject["vendorId"] = vendorID
+			}
+			if productID, ok := gpuMap["product_id"].(string); ok && productID != "" {
+				gpuObject["productId"] = productID
+			}
+			
+			gpuObjects = append(gpuObjects, gpuObject)
+		}
+		
+		if len(gpuObjects) > 0 {
+			// Add to existing hostDevices or create new
+			if existingHostDevices, ok := spec["template"].(map[string]interface{})["spec"].(map[string]interface{})["domain"].(map[string]interface{})["devices"].(map[string]interface{})["hostDevices"]; ok {
+				if existingList, ok := existingHostDevices.([]map[string]interface{}); ok {
+					existingList = append(existingList, gpuObjects...)
+					spec["template"].(map[string]interface{})["spec"].(map[string]interface{})["domain"].(map[string]interface{})["devices"].(map[string]interface{})["hostDevices"] = existingList
+				}
+			} else {
+				spec["template"].(map[string]interface{})["spec"].(map[string]interface{})["domain"].(map[string]interface{})["devices"].(map[string]interface{})["hostDevices"] = gpuObjects
+			}
+		}
 	}
 	
 	vm.Object["spec"] = spec
